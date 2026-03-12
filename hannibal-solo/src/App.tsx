@@ -79,39 +79,82 @@ interface DiceResult {
   verdict: string
 }
 
-// ── MapCanvas ────────────────────────────────────────────────────────
+// ── ボードコマ ───────────────────────────────────────────────────────
+const SNAP_THRESHOLD = 30     // スナップ判定距離（canvas座標系px）
+const PIECE_SIZE = 36         // 画面上の表示サイズ（px）
 
-function MapCanvas({ cities }: { cities: City[] }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+interface BoardPiece {
+  id: string
+  type: 'General' | 'CU' | 'PC'
+  x: number          // canvas座標 (0〜2362)
+  y: number          // canvas座標 (0〜1532)
+  imagePath: string
+  label?: string
+}
+
+// テスト用初期配置（カルタゴ→カルタゴ市、ローマ→ローマ）
+const INITIAL_PIECES: BoardPiece[] = [
+  // ── カルタゴ陣営 ──
+  { id: 'hannibal',  type: 'General', x: 1595, y: 1228, imagePath: '/images/tkn-gnrl-Hannibal.png',  label: 'Hannibal'  },
+  { id: 'hasdrubal', type: 'General', x: 1595, y: 1228, imagePath: '/images/tkn-gnrl-Hasdrubal.png', label: 'Hasdrubal' },
+  { id: 'hanno',     type: 'General', x: 1595, y: 1228, imagePath: '/images/tkn-gnrl-Hanno.png',     label: 'Hanno'     },
+  { id: 'ccu1',      type: 'CU',     x: 1595, y: 1228, imagePath: '/images/tkn-cus-CarthCU.png'  },
+  { id: 'ccu2',      type: 'CU',     x: 1595, y: 1228, imagePath: '/images/tkn-cus-CarthCU1.png' },
+  // ── ローマ陣営 ──
+  { id: 'fabius',    type: 'General', x: 1748, y: 729, imagePath: '/images/tkn-gnrl-Fabius.png',    label: 'Fabius'    },
+  { id: 'flaminius', type: 'General', x: 1748, y: 729, imagePath: '/images/tkn-gnrl-Flaminius.png', label: 'Flaminius' },
+  { id: 'rcu1',      type: 'CU',     x: 1748, y: 729, imagePath: '/images/tkn-cus-RomanCU.png'  },
+  { id: 'rcu2',      type: 'CU',     x: 1748, y: 729, imagePath: '/images/tkn-cus-RomanCU1.png' },
+]
+
+interface DragState {
+  pieceId: string
+  offsetX: number   // マウス位置 − コマ中心（display px）
+  offsetY: number
+  currentX: number  // コマ中心の現在display位置
+  currentY: number
+}
+
+// ── MapBoard ─────────────────────────────────────────────────────────
+
+function MapBoard({ cities }: { cities: City[] }) {
+  const canvasRef  = useRef<HTMLCanvasElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
-  const [tooltip, setTooltip] = useState<{ name: string; x: number; y: number } | null>(null)
+  const dragRef    = useRef<DragState | null>(null)
 
-  // 地図画像を読み込み、キャンバスを実寸にセットして都市ドットを描画
+  const [pieces,  setPieces]  = useState<BoardPiece[]>(INITIAL_PIECES)
+  const [tooltip, setTooltip] = useState<{ name: string; x: number; y: number } | null>(null)
+  const [drag,    setDrag]    = useState<DragState | null>(null)
+  // 画像ロード後・リサイズ後にコマ位置を再計算するためのトリガー
+  const [, forceUpdate] = useState(0)
+
+  // dragRef を最新の drag と同期（window イベントハンドラ内の stale closure 対策）
+  useEffect(() => { dragRef.current = drag }, [drag])
+
+  // canvas scale: canvas の自然サイズ ÷ CSS 表示サイズ
+  const getScale = () => {
+    const c = canvasRef.current
+    if (!c || !c.width) return { sx: 1, sy: 1 }
+    const r = c.getBoundingClientRect()
+    if (!r.width) return { sx: 1, sy: 1 }
+    return { sx: c.width / r.width, sy: c.height / r.height }
+  }
+
+  // 地図画像のロードと都市ドットの描画
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    const MAP_SRC = '/images/maps-mainmap.png'
-    console.log('[MapCanvas] loading image:', MAP_SRC)
-
     const img = new Image()
-    img.src = MAP_SRC
+    img.src = '/images/maps-mainmap.png'
     img.onload = () => {
-      console.log('[MapCanvas] image loaded:', img.naturalWidth, 'x', img.naturalHeight)
-
-      // キャンバスサイズを画像の実サイズに合わせる
-      canvas.width = img.naturalWidth
+      canvas.width  = img.naturalWidth
       canvas.height = img.naturalHeight
-
-      // 地図を描画
       ctx.drawImage(img, 0, 0)
-
-      // 都市ドットを描画（半径 6px）
       for (const city of cities) {
-        const isRome =
-          city.name.includes('Rome') || city.name.includes('Rest Position')
+        const isRome = city.name.includes('Rome') || city.name.includes('Rest Position')
         ctx.beginPath()
         ctx.arc(city.x, city.y, 6, 0, Math.PI * 2)
         ctx.fillStyle = isRome ? '#ef4444' : '#facc15'
@@ -120,60 +163,183 @@ function MapCanvas({ cities }: { cities: City[] }) {
         ctx.lineWidth = 1.5
         ctx.stroke()
       }
+      forceUpdate(n => n + 1)  // コマ位置を正しいスケールで再計算
     }
-    img.onerror = (err) => {
-      console.error('[MapCanvas] image load FAILED:', MAP_SRC, err)
+    img.onerror = (err) => console.error('[MapBoard] image load FAILED:', err)
+  }, [cities])
+
+  // リサイズ時もコマ位置を再計算
+  useEffect(() => {
+    const handler = () => forceUpdate(n => n + 1)
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [])
+
+  // ドラッグ中の window-level マウスイベント
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      const d = dragRef.current
+      if (!d) return
+      const rect = canvasRef.current?.getBoundingClientRect()
+      if (!rect) return
+      setDrag(prev => prev
+        ? { ...prev, currentX: e.clientX - rect.left - d.offsetX, currentY: e.clientY - rect.top - d.offsetY }
+        : null
+      )
+    }
+
+    const onUp = (e: MouseEvent) => {
+      const d = dragRef.current
+      if (!d) return
+      const rect = canvasRef.current?.getBoundingClientRect()
+      if (!rect) return
+      const { sx, sy } = getScale()
+
+      // display座標 → canvas座標
+      const cx = (e.clientX - rect.left - d.offsetX) * sx
+      const cy = (e.clientY - rect.top  - d.offsetY) * sy
+
+      // スナップ判定
+      let finalX = cx, finalY = cy, minDist = Infinity
+      for (const city of cities) {
+        const dist = Math.hypot(city.x - cx, city.y - cy)
+        if (dist < SNAP_THRESHOLD && dist < minDist) {
+          minDist = dist; finalX = city.x; finalY = city.y
+        }
+      }
+
+      // canvas 範囲内にクランプ
+      const canvas = canvasRef.current
+      if (canvas) {
+        finalX = Math.max(0, Math.min(canvas.width,  finalX))
+        finalY = Math.max(0, Math.min(canvas.height, finalY))
+      }
+
+      setPieces(prev => prev.map(p => p.id === d.pieceId ? { ...p, x: finalX, y: finalY } : p))
+      setDrag(null)
+    }
+
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup',   onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup',   onUp)
     }
   }, [cities])
 
-  // マウス移動: CSSスケールを逆算してキャンバス座標に変換し、最近傍都市を探す
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const rect = canvas.getBoundingClientRect()
+  const handlePieceMouseDown = (pieceId: string, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const rect = canvasRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const { sx, sy } = getScale()
+    const piece = pieces.find(p => p.id === pieceId)!
+    const dispX = piece.x / sx
+    const dispY = piece.y / sy
+    setDrag({ pieceId, offsetX: e.clientX - rect.left - dispX, offsetY: e.clientY - rect.top - dispY, currentX: dispX, currentY: dispY })
+  }
 
-    // CSS で縮小されている場合の比率
-    const scaleX = canvas.width / rect.width
-    const scaleY = canvas.height / rect.height
-    const cx = (e.clientX - rect.left) * scaleX
-    const cy = (e.clientY - rect.top) * scaleY
-
-    // 閾値 20px（キャンバス座標系）以内の最近傍都市
-    const THRESHOLD = 20
-    let nearest: City | null = null
-    let minDist = Infinity
+  // canvas の tooltip（ドラッグ中は非表示）
+  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (dragRef.current) return
+    const { sx, sy } = getScale()
+    const rect = canvasRef.current!.getBoundingClientRect()
+    const cx = (e.clientX - rect.left) * sx
+    const cy = (e.clientY - rect.top)  * sy
+    let nearest: City | null = null, minDist = Infinity
     for (const city of cities) {
       const d = Math.hypot(city.x - cx, city.y - cy)
-      if (d < THRESHOLD && d < minDist) {
-        minDist = d
-        nearest = city
-      }
+      if (d < 20 && d < minDist) { minDist = d; nearest = city }
     }
-
     if (nearest) {
-      // ツールチップ位置はラッパー要素相対の画面座標
       const wRect = wrapperRef.current?.getBoundingClientRect()
-      setTooltip({
-        name: nearest.name,
-        x: e.clientX - (wRect?.left ?? 0) + 12,
-        y: Math.max(0, e.clientY - (wRect?.top ?? 0) - 30),
-      })
+      setTooltip({ name: nearest.name, x: e.clientX - (wRect?.left ?? 0) + 12, y: Math.max(0, e.clientY - (wRect?.top ?? 0) - 30) })
     } else {
       setTooltip(null)
     }
   }
 
+  // スタック: 同一座標（四捨五入）のコマをグループ化し、ずらし量を計算
+  const stackMap = new Map<string, string[]>()
+  for (const p of pieces) {
+    if (p.id === drag?.pieceId) continue
+    const key = `${Math.round(p.x)},${Math.round(p.y)}`
+    const arr = stackMap.get(key) ?? []
+    arr.push(p.id)
+    stackMap.set(key, arr)
+  }
+
+  const { sx, sy } = getScale()
+
   return (
-    <div ref={wrapperRef} className="relative w-full">
+    <div ref={wrapperRef} className="relative w-full select-none">
       <canvas
         ref={canvasRef}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={() => setTooltip(null)}
-        style={{ maxWidth: '100%', height: 'auto', display: 'block', cursor: 'crosshair' }}
+        onMouseMove={handleCanvasMouseMove}
+        onMouseLeave={() => { if (!drag) setTooltip(null) }}
+        style={{ maxWidth: '100%', height: 'auto', display: 'block', cursor: drag ? 'grabbing' : 'crosshair' }}
       />
-      {tooltip && (
+
+      {/* コマオーバーレイ */}
+      {pieces.map((piece) => {
+        const isDragging = drag?.pieceId === piece.id
+        let dispX: number, dispY: number
+
+        if (isDragging && drag) {
+          dispX = drag.currentX
+          dispY = drag.currentY
+        } else {
+          const key   = `${Math.round(piece.x)},${Math.round(piece.y)}`
+          const group = stackMap.get(key) ?? []
+          const si    = group.indexOf(piece.id)   // stack index
+          dispX = piece.x / sx + si * 12
+          dispY = piece.y / sy + si * -4
+        }
+
+        return (
+          <div
+            key={piece.id}
+            onMouseDown={(e) => handlePieceMouseDown(piece.id, e)}
+            style={{
+              position:  'absolute',
+              left:      dispX - PIECE_SIZE / 2,
+              top:       dispY - PIECE_SIZE / 2,
+              width:     PIECE_SIZE,
+              height:    PIECE_SIZE,
+              zIndex:    isDragging ? 50 : 10,
+              cursor:    isDragging ? 'grabbing' : 'grab',
+              filter:    isDragging
+                ? 'drop-shadow(0 0 5px rgba(255,220,0,0.95))'
+                : 'drop-shadow(0 1px 3px rgba(0,0,0,0.9))',
+              transition: isDragging ? 'none' : 'filter 0.1s',
+            }}
+          >
+            <img
+              src={piece.imagePath}
+              alt={piece.label ?? piece.type}
+              draggable={false}
+              style={{ width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none' }}
+            />
+            {/* ラベル（将軍のみ、ドラッグ中は非表示） */}
+            {piece.label && !isDragging && (
+              <div style={{
+                position: 'absolute', bottom: -10, left: '50%',
+                transform: 'translateX(-50%)',
+                fontSize: 8, color: 'white', whiteSpace: 'nowrap',
+                textShadow: '0 0 3px #000, 0 0 3px #000',
+                pointerEvents: 'none',
+              }}>
+                {piece.label}
+              </div>
+            )}
+          </div>
+        )
+      })}
+
+      {/* 都市ツールチップ */}
+      {tooltip && !drag && (
         <div
-          className="absolute z-10 bg-black/90 text-white text-xs px-2 py-1 rounded pointer-events-none whitespace-nowrap"
+          className="absolute z-20 bg-black/90 text-white text-xs px-2 py-1 rounded pointer-events-none whitespace-nowrap"
           style={{ left: tooltip.x, top: tooltip.y }}
         >
           {tooltip.name}
@@ -634,7 +800,7 @@ export default function App() {
           Hannibal: Rome vs Carthage — Solo Aid
         </h1>
         <div className="flex-1 overflow-auto">
-          <MapCanvas cities={cities} />
+          <MapBoard cities={cities} />
         </div>
         <p className="shrink-0 text-xs text-slate-500">
           都市数: {cities.length}　ドットにホバーで都市名を表示
