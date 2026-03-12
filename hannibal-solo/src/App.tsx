@@ -109,22 +109,48 @@ const INITIAL_PIECES: BoardPiece[] = [
 
 interface DragState {
   pieceId: string
-  offsetX: number   // マウス位置 − コマ中心（display px）
+  offsetX: number
   offsetY: number
-  currentX: number  // コマ中心の現在display位置
+  currentX: number
   currentY: number
 }
 
+// ── 将軍ステータス ────────────────────────────────────────────────────
+const GENERAL_STATS: Record<string, { side: 'Rome' | 'Carthage'; strategy: number; combat: number }> = {
+  'Hannibal':          { side: 'Carthage', strategy: 6, combat: 5 },
+  'Hasdrubal':         { side: 'Carthage', strategy: 4, combat: 3 },
+  'Hanno':             { side: 'Carthage', strategy: 2, combat: 1 },
+  'Mago':              { side: 'Carthage', strategy: 3, combat: 2 },
+  'H. Gisbo':          { side: 'Carthage', strategy: 2, combat: 2 },
+  'Fabius':            { side: 'Rome',     strategy: 3, combat: 2 },
+  'Flaminius':         { side: 'Rome',     strategy: 1, combat: 3 },
+  'Varro':             { side: 'Rome',     strategy: 1, combat: 2 },
+  'A. Paulus':         { side: 'Rome',     strategy: 2, combat: 3 },
+  'Marcellus':         { side: 'Rome',     strategy: 3, combat: 4 },
+  'G. Nero':           { side: 'Rome',     strategy: 3, combat: 3 },
+  'P. Scipio':         { side: 'Rome',     strategy: 3, combat: 2 },
+  'Scipio Africanus':  { side: 'Rome',     strategy: 5, combat: 4 },
+  'T. Longus':         { side: 'Rome',     strategy: 1, combat: 2 },
+}
+
+// ── プレビューデータ型 ────────────────────────────────────────────────
+type PreviewData =
+  | { kind: 'card';   name: string; imagePath: string; isBack: boolean; priority: string }
+  | { kind: 'piece';  piece: BoardPiece; stackedWith: BoardPiece[] }
+  | { kind: 'city';   city: City; pieces: BoardPiece[] }
+  | null
+
+type SetPreviewFn = (data: PreviewData) => void
+
 // ── MapBoard ─────────────────────────────────────────────────────────
 
-function MapBoard({ cities }: { cities: City[] }) {
+function MapBoard({ cities, setPreview }: { cities: City[]; setPreview: SetPreviewFn }) {
   const canvasRef  = useRef<HTMLCanvasElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
   const dragRef    = useRef<DragState | null>(null)
 
-  const [pieces,  setPieces]  = useState<BoardPiece[]>(INITIAL_PIECES)
-  const [tooltip, setTooltip] = useState<{ name: string; x: number; y: number } | null>(null)
-  const [drag,    setDrag]    = useState<DragState | null>(null)
+  const [pieces, setPieces] = useState<BoardPiece[]>(INITIAL_PIECES)
+  const [drag,   setDrag]   = useState<DragState | null>(null)
   // 画像ロード後・リサイズ後にコマ位置を再計算するためのトリガー
   const [, forceUpdate] = useState(0)
 
@@ -239,7 +265,7 @@ function MapBoard({ cities }: { cities: City[] }) {
     setDrag({ pieceId, offsetX: e.clientX - rect.left - dispX, offsetY: e.clientY - rect.top - dispY, currentX: dispX, currentY: dispY })
   }
 
-  // canvas の tooltip（ドラッグ中は非表示）
+  // canvas のマウス移動 → 都市プレビュー（ドラッグ中は無効）
   const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (dragRef.current) return
     const { sx, sy } = getScale()
@@ -252,10 +278,12 @@ function MapBoard({ cities }: { cities: City[] }) {
       if (d < 20 && d < minDist) { minDist = d; nearest = city }
     }
     if (nearest) {
-      const wRect = wrapperRef.current?.getBoundingClientRect()
-      setTooltip({ name: nearest.name, x: e.clientX - (wRect?.left ?? 0) + 12, y: Math.max(0, e.clientY - (wRect?.top ?? 0) - 30) })
+      const cityPieces = pieces.filter(p =>
+        Math.round(p.x) === Math.round(nearest!.x) && Math.round(p.y) === Math.round(nearest!.y)
+      )
+      setPreview({ kind: 'city', city: nearest, pieces: cityPieces })
     } else {
-      setTooltip(null)
+      setPreview(null)
     }
   }
 
@@ -276,7 +304,7 @@ function MapBoard({ cities }: { cities: City[] }) {
       <canvas
         ref={canvasRef}
         onMouseMove={handleCanvasMouseMove}
-        onMouseLeave={() => { if (!drag) setTooltip(null) }}
+        onMouseLeave={() => { if (!drag) setPreview(null) }}
         style={{ maxWidth: '100%', height: 'auto', display: 'block', cursor: drag ? 'grabbing' : 'crosshair' }}
       />
 
@@ -300,6 +328,13 @@ function MapBoard({ cities }: { cities: City[] }) {
           <div
             key={piece.id}
             onMouseDown={(e) => handlePieceMouseDown(piece.id, e)}
+            onMouseEnter={() => {
+              if (drag) return
+              const key = `${Math.round(piece.x)},${Math.round(piece.y)}`
+              const others = pieces.filter(p => p.id !== piece.id && `${Math.round(p.x)},${Math.round(p.y)}` === key)
+              setPreview({ kind: 'piece', piece, stackedWith: others })
+            }}
+            onMouseLeave={() => setPreview(null)}
             style={{
               position:  'absolute',
               left:      dispX - PIECE_SIZE / 2,
@@ -336,15 +371,6 @@ function MapBoard({ cities }: { cities: City[] }) {
         )
       })}
 
-      {/* 都市ツールチップ */}
-      {tooltip && !drag && (
-        <div
-          className="absolute z-20 bg-black/90 text-white text-xs px-2 py-1 rounded pointer-events-none whitespace-nowrap"
-          style={{ left: tooltip.x, top: tooltip.y }}
-        >
-          {tooltip.name}
-        </div>
-      )}
     </div>
   )
 }
@@ -421,30 +447,28 @@ const PRIORITY_STYLE: Record<string, { bg: string; fg: string }> = {
 }
 
 // ── CardTile ─────────────────────────────────────────────────────────
-// 1枚のカードを表示するタイル（52×82px）
-function CardTile({
-  card,
-  onReveal,
-}: {
+function CardTile({ card, onReveal, onPreview, onPreviewEnd }: {
   card: CardInHand
   onReveal?: () => void
+  onPreview?: SetPreviewFn
+  onPreviewEnd?: () => void
 }) {
   const [imgError, setImgError] = useState(false)
   const ps = PRIORITY_STYLE[card.priority]
 
+  const hoverIn  = () => onPreview?.({ kind: 'card', name: card.name, imagePath: card.imagePath, isBack: !card.isRevealed, priority: card.priority })
+  const hoverOut = () => onPreviewEnd?.()
+
   if (!card.isRevealed) {
-    // 裏向き: 優先順位ラベルを大きく表示、クリックで公開
     return (
       <button
         onClick={onReveal}
+        onMouseEnter={hoverIn} onMouseLeave={hoverOut}
         title="クリックで公開"
         className="relative flex flex-col items-center justify-center gap-1 rounded-md border-2 border-slate-600 bg-slate-700 hover:border-yellow-400 hover:bg-slate-600 transition-colors"
         style={{ width: 52, height: 82 }}
       >
-        <span
-          className="text-2xl font-black leading-none rounded px-1"
-          style={{ color: ps.fg, backgroundColor: ps.bg }}
-        >
+        <span className="text-2xl font-black leading-none rounded px-1" style={{ color: ps.fg, backgroundColor: ps.bg }}>
           {card.priority}
         </span>
         <span className="text-slate-500 text-lg leading-none">?</span>
@@ -452,34 +476,20 @@ function CardTile({
     )
   }
 
-  // 表向き
   return (
     <div
       className="relative flex flex-col rounded-md border border-slate-500 bg-slate-600 overflow-hidden"
+      onMouseEnter={hoverIn} onMouseLeave={hoverOut}
       style={{ width: 52, height: 82 }}
     >
-      {/* 優先順位バッジ（左上・絶対配置） */}
-      <div
-        className="absolute top-0 left-0 text-xs font-bold px-1 leading-5 z-10"
-        style={{ backgroundColor: ps.bg, color: ps.fg }}
-      >
+      <div className="absolute top-0 left-0 text-xs font-bold px-1 leading-5 z-10" style={{ backgroundColor: ps.bg, color: ps.fg }}>
         {card.priority}
       </div>
-
-      {/* カード画像 or フォールバック */}
       {!imgError ? (
-        <img
-          src={card.imagePath}
-          alt={card.name}
-          onError={() => setImgError(true)}
-          className="w-full h-full object-cover"
-        />
+        <img src={card.imagePath} alt={card.name} onError={() => setImgError(true)} className="w-full h-full object-cover" />
       ) : (
-        // 画像読み込み失敗時: カード名テキストを表示
         <div className="flex-1 flex items-center justify-center px-1 pt-5 pb-1">
-          <span className="text-slate-100 text-center leading-tight" style={{ fontSize: 8 }}>
-            {card.name}
-          </span>
+          <span className="text-slate-100 text-center leading-tight" style={{ fontSize: 8 }}>{card.name}</span>
         </div>
       )}
     </div>
@@ -487,7 +497,7 @@ function CardTile({
 }
 
 // ── CardDealPanel ────────────────────────────────────────────────────
-function CardDealPanel() {
+function CardDealPanel({ setPreview }: { setPreview: SetPreviewFn }) {
   const [playerHand, setPlayerHand] = useState<CardInHand[]>([])
   const [opponentHand, setOpponentHand] = useState<CardInHand[]>([])
 
@@ -547,11 +557,8 @@ function CardDealPanel() {
             </h2>
             <div className="flex gap-1 justify-center">
               {opponentHand.map((card, i) => (
-                <CardTile
-                  key={i}
-                  card={card}
-                  onReveal={() => revealOpponentCard(i)}
-                />
+                <CardTile key={i} card={card} onReveal={() => revealOpponentCard(i)}
+                  onPreview={setPreview} onPreviewEnd={() => setPreview(null)} />
               ))}
             </div>
           </div>
@@ -563,7 +570,8 @@ function CardDealPanel() {
             </h2>
             <div className="flex gap-1 justify-center">
               {playerHand.map((card, i) => (
-                <CardTile key={i} card={card} />
+                <CardTile key={i} card={card}
+                  onPreview={setPreview} onPreviewEnd={() => setPreview(null)} />
               ))}
             </div>
           </div>
@@ -577,20 +585,22 @@ function CardDealPanel() {
 // バトルカード1枚（64×100px）
 const BATTLE_BACK = '/images/cards-btl-Back.png'
 
-function BattleCardTile({
-  card,
-  onReveal,
-}: {
+function BattleCardTile({ card, onReveal, onPreview, onPreviewEnd }: {
   card: BattleCard
   onReveal?: () => void
+  onPreview?: SetPreviewFn
+  onPreviewEnd?: () => void
 }) {
   const [imgError, setImgError] = useState(false)
+  const hoverIn  = () => onPreview?.({ kind: 'card', name: card.name, imagePath: card.isRevealed ? card.imagePath : BATTLE_BACK, isBack: !card.isRevealed, priority: card.priority })
+  const hoverOut = () => onPreviewEnd?.()
   const ps = card.priority ? PRIORITY_STYLE[card.priority] : null
 
   if (!card.isRevealed) {
     return (
       <button
         onClick={onReveal}
+        onMouseEnter={hoverIn} onMouseLeave={hoverOut}
         title="クリックで公開"
         className="relative flex-shrink-0 rounded-md overflow-hidden border-2 border-slate-600 hover:border-yellow-400 transition-colors"
         style={{ width: 64, height: 100 }}
@@ -611,6 +621,7 @@ function BattleCardTile({
   return (
     <div
       className="relative flex-shrink-0 rounded-md overflow-hidden border border-slate-400"
+      onMouseEnter={hoverIn} onMouseLeave={hoverOut}
       style={{ width: 64, height: 100 }}
     >
       {!imgError ? (
@@ -640,7 +651,7 @@ function BattleCardTile({
 }
 
 // ── BattleResolverModal ──────────────────────────────────────────────
-function BattleResolverModal({ onClose }: { onClose: () => void }) {
+function BattleResolverModal({ onClose, setPreview }: { onClose: () => void; setPreview: SetPreviewFn }) {
   const [drawPile, setDrawPile] = useState<typeof FULL_BATTLE_DECK>(() => shuffle(FULL_BATTLE_DECK))
   const [discardPile, setDiscardPile] = useState<typeof FULL_BATTLE_DECK>([])
   const [romeHand, setRomeHand] = useState<BattleCard[]>([])
@@ -685,7 +696,7 @@ function BattleResolverModal({ onClose }: { onClose: () => void }) {
     const returned = [
       ...romeHand.map(({ name, imagePath }) => ({ name, imagePath })),
       ...carthageHand.map(({ name, imagePath }) => ({ name, imagePath })),
-    ]
+    ] as typeof FULL_BATTLE_DECK
     setDiscardPile(prev => [...prev, ...returned])
     setRomeHand([])
     setCarthageHand([])
@@ -757,7 +768,8 @@ function BattleResolverModal({ onClose }: { onClose: () => void }) {
                 </h3>
                 <div className="flex flex-wrap gap-2">
                   {carthageHand.map((card, i) => (
-                    <BattleCardTile key={i} card={card} onReveal={() => revealCarthageCard(i)} />
+                    <BattleCardTile key={i} card={card} onReveal={() => revealCarthageCard(i)}
+                      onPreview={setPreview} onPreviewEnd={() => setPreview(null)} />
                   ))}
                 </div>
               </div>
@@ -767,7 +779,8 @@ function BattleResolverModal({ onClose }: { onClose: () => void }) {
                 <h3 className="text-blue-400 font-bold text-xs tracking-wide uppercase">Rome (Player)</h3>
                 <div className="flex flex-wrap gap-2">
                   {romeHand.map((card, i) => (
-                    <BattleCardTile key={i} card={card} />
+                    <BattleCardTile key={i} card={card}
+                      onPreview={setPreview} onPreviewEnd={() => setPreview(null)} />
                   ))}
                 </div>
               </div>
@@ -786,11 +799,158 @@ function BattleResolverModal({ onClose }: { onClose: () => void }) {
   )
 }
 
+// ── PreviewPanel ─────────────────────────────────────────────────────
+function PreviewPanel({ data, cursor }: { data: PreviewData; cursor: { x: number; y: number } }) {
+  if (!data) return null
+
+  const W = 220
+  const estimatedH = data.kind === 'card' ? 320 : data.kind === 'piece' ? 190 : 160
+  const margin = 12
+  let left = cursor.x + 20
+  let top  = cursor.y - estimatedH / 2
+  if (left + W > window.innerWidth - margin) left = cursor.x - W - 20
+  top = Math.max(margin, Math.min(window.innerHeight - estimatedH - margin, top))
+
+  const panelStyle: React.CSSProperties = {
+    position: 'fixed', left, top, width: W, zIndex: 200,
+    pointerEvents: 'none',
+    background: 'rgba(10, 15, 25, 0.96)',
+    border: '1px solid rgba(200,160,50,0.55)',
+    borderRadius: 10,
+    boxShadow: '0 6px 32px rgba(0,0,0,0.85), inset 0 0 24px rgba(200,160,50,0.04)',
+    overflow: 'hidden',
+  }
+
+  // カードプレビュー
+  if (data.kind === 'card') {
+    const ps = data.priority ? PRIORITY_STYLE[data.priority] : null
+    return (
+      <div style={panelStyle}>
+        <div style={{ position: 'relative' }}>
+          <img src={data.imagePath} alt={data.name}
+            style={{ width: '100%', display: 'block', borderRadius: '10px 10px 0 0' }} />
+          {data.isBack && ps && (
+            <div style={{
+              position: 'absolute', top: 8, left: 8,
+              fontSize: 28, fontWeight: 900, lineHeight: 1,
+              color: ps.fg, backgroundColor: ps.bg,
+              borderRadius: 6, padding: '2px 8px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.6)',
+            }}>{data.priority}</div>
+          )}
+        </div>
+        <div style={{ padding: '8px 10px', borderTop: '1px solid rgba(200,160,50,0.2)' }}>
+          <p style={{ fontSize: 11, color: '#c8a840', fontWeight: 700, margin: 0 }}>
+            {data.isBack ? '（未公開）' : data.name}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  // コマプレビュー
+  if (data.kind === 'piece') {
+    const { piece, stackedWith } = data
+    const stats = piece.label ? GENERAL_STATS[piece.label] : null
+    const sideColor = stats?.side === 'Rome' ? '#60a5fa' : stats?.side === 'Carthage' ? '#f87171' : '#a3a3a3'
+    return (
+      <div style={panelStyle}>
+        <div style={{ display: 'flex', gap: 10, padding: 12 }}>
+          <img src={piece.imagePath} alt={piece.label ?? piece.type}
+            style={{ width: 72, height: 72, objectFit: 'contain', flexShrink: 0,
+              filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.8))' }} />
+          <div style={{ flex: 1 }}>
+            <p style={{ fontSize: 13, fontWeight: 700, color: '#f0e6b0', margin: '0 0 4px' }}>
+              {piece.label ?? piece.type}
+            </p>
+            {stats && (
+              <>
+                <p style={{ fontSize: 10, color: sideColor, margin: '0 0 6px', fontWeight: 600 }}>{stats.side}</p>
+                <table style={{ fontSize: 11, borderCollapse: 'collapse', width: '100%' }}>
+                  <tbody>
+                    <tr>
+                      <td style={{ color: '#94a3b8', paddingRight: 8 }}>Strategy</td>
+                      <td style={{ color: '#fbbf24', fontWeight: 700 }}>{stats.strategy}</td>
+                    </tr>
+                    <tr>
+                      <td style={{ color: '#94a3b8', paddingRight: 8 }}>Combat</td>
+                      <td style={{ color: '#fbbf24', fontWeight: 700 }}>{stats.combat}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </>
+            )}
+            {!stats && (
+              <p style={{ fontSize: 10, color: '#64748b' }}>{piece.type}</p>
+            )}
+          </div>
+        </div>
+        {stackedWith.length > 0 && (
+          <div style={{ borderTop: '1px solid rgba(200,160,50,0.2)', padding: '6px 12px' }}>
+            <p style={{ fontSize: 10, color: '#94a3b8', margin: '0 0 4px' }}>同スペースに共存:</p>
+            {stackedWith.map(p => (
+              <p key={p.id} style={{ fontSize: 10, color: '#c8a840', margin: 0 }}>
+                • {p.label ?? p.type}
+              </p>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // 都市プレビュー
+  if (data.kind === 'city') {
+    const romanPieces    = data.pieces.filter(p => GENERAL_STATS[p.label ?? '']?.side === 'Rome'     || p.imagePath.includes('Roman'))
+    const cartPieces     = data.pieces.filter(p => GENERAL_STATS[p.label ?? '']?.side === 'Carthage' || p.imagePath.includes('Carth'))
+    const controlColor   = romanPieces.length > cartPieces.length ? '#60a5fa'
+                         : cartPieces.length > romanPieces.length ? '#f87171' : '#94a3b8'
+    const controlLabel   = romanPieces.length > cartPieces.length ? 'Rome'
+                         : cartPieces.length > romanPieces.length ? 'Carthage' : 'Neutral'
+    return (
+      <div style={panelStyle}>
+        <div style={{ padding: '10px 12px 6px', borderBottom: '1px solid rgba(200,160,50,0.2)' }}>
+          <p style={{ fontSize: 13, fontWeight: 700, color: '#f0e6b0', margin: '0 0 4px' }}>{data.city.name}</p>
+          <span style={{ fontSize: 10, fontWeight: 600, color: controlColor,
+            background: 'rgba(255,255,255,0.07)', borderRadius: 4, padding: '1px 6px' }}>
+            {controlLabel}
+          </span>
+        </div>
+        <div style={{ padding: '8px 12px' }}>
+          {data.pieces.length === 0 ? (
+            <p style={{ fontSize: 10, color: '#64748b', margin: 0 }}>ユニットなし</p>
+          ) : (
+            data.pieces.map(p => (
+              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                <img src={p.imagePath} alt={p.label ?? p.type}
+                  style={{ width: 22, height: 22, objectFit: 'contain',
+                    filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.8))' }} />
+                <span style={{ fontSize: 10, color: '#c8a840' }}>{p.label ?? p.type}</span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  return null
+}
+
 // ── App ──────────────────────────────────────────────────────────────
 
 export default function App() {
   const cities = hannibalData.cities as City[]
   const [battleOpen, setBattleOpen] = useState(false)
+  const [preview,    setPreview]    = useState<PreviewData>(null)
+  const [cursor,     setCursor]     = useState({ x: 0, y: 0 })
+
+  // グローバルカーソル追跡
+  useEffect(() => {
+    const h = (e: MouseEvent) => setCursor({ x: e.clientX, y: e.clientY })
+    window.addEventListener('mousemove', h)
+    return () => window.removeEventListener('mousemove', h)
+  }, [])
 
   return (
     <div className="flex h-screen bg-slate-900 text-white overflow-hidden">
@@ -800,16 +960,15 @@ export default function App() {
           Hannibal: Rome vs Carthage — Solo Aid
         </h1>
         <div className="flex-1 overflow-auto">
-          <MapBoard cities={cities} />
+          <MapBoard cities={cities} setPreview={setPreview} />
         </div>
         <p className="shrink-0 text-xs text-slate-500">
-          都市数: {cities.length}　ドットにホバーで都市名を表示
+          都市数: {cities.length}　ドットにホバーで都市名・ユニット情報を表示
         </p>
       </div>
 
       {/* 右: 情報パネル */}
       <div className="w-80 shrink-0 flex flex-col gap-3 p-3 overflow-y-auto border-l border-slate-700">
-        {/* Start Battle ボタン */}
         <button
           onClick={() => setBattleOpen(true)}
           className="w-full bg-red-800 hover:bg-red-700 text-white font-bold py-2 rounded transition-colors"
@@ -817,11 +976,14 @@ export default function App() {
           ⚔ Start Battle
         </button>
         <StukaJoePanel />
-        <CardDealPanel />
+        <CardDealPanel setPreview={setPreview} />
       </div>
 
       {/* Battle Resolver モーダル */}
-      {battleOpen && <BattleResolverModal onClose={() => setBattleOpen(false)} />}
+      {battleOpen && <BattleResolverModal onClose={() => setBattleOpen(false)} setPreview={setPreview} />}
+
+      {/* フローティングプレビューパネル */}
+      <PreviewPanel data={preview} cursor={cursor} />
     </div>
   )
 }
