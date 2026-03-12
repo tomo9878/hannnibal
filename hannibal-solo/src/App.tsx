@@ -82,6 +82,7 @@ interface DiceResult {
 // ── ボードコマ ───────────────────────────────────────────────────────
 const SNAP_THRESHOLD = 30     // スナップ判定距離（canvas座標系px）
 const PIECE_SIZE = 36         // 画面上の表示サイズ（px）
+const PC_SIZE    = 18         // PCマーカーの表示サイズ（px）
 
 interface BoardPiece {
   id: string
@@ -92,20 +93,66 @@ interface BoardPiece {
   label?: string
 }
 
-// テスト用初期配置（カルタゴ→カルタゴ市、ローマ→ローマ）
-const INITIAL_PIECES: BoardPiece[] = [
-  // ── カルタゴ陣営 ──
-  { id: 'hannibal',  type: 'General', x: 1595, y: 1228, imagePath: '/images/tkn-gnrl-Hannibal.png',  label: 'Hannibal'  },
-  { id: 'hasdrubal', type: 'General', x: 1595, y: 1228, imagePath: '/images/tkn-gnrl-Hasdrubal.png', label: 'Hasdrubal' },
-  { id: 'hanno',     type: 'General', x: 1595, y: 1228, imagePath: '/images/tkn-gnrl-Hanno.png',     label: 'Hanno'     },
-  { id: 'ccu1',      type: 'CU',     x: 1595, y: 1228, imagePath: '/images/tkn-cus-CarthCU.png'  },
-  { id: 'ccu2',      type: 'CU',     x: 1595, y: 1228, imagePath: '/images/tkn-cus-CarthCU1.png' },
-  // ── ローマ陣営 ──
-  { id: 'fabius',    type: 'General', x: 1748, y: 729, imagePath: '/images/tkn-gnrl-Fabius.png',    label: 'Fabius'    },
-  { id: 'flaminius', type: 'General', x: 1748, y: 729, imagePath: '/images/tkn-gnrl-Flaminius.png', label: 'Flaminius' },
-  { id: 'rcu1',      type: 'CU',     x: 1748, y: 729, imagePath: '/images/tkn-cus-RomanCU.png'  },
-  { id: 'rcu2',      type: 'CU',     x: 1748, y: 729, imagePath: '/images/tkn-cus-RomanCU1.png' },
-]
+// ── シナリオ1 初期配置 ────────────────────────────────────────────────
+
+// PC支配省マッピング
+// ※ Umbria / Magna Graecia はデータ上の省名として存在しないため省略
+// ※ Carthaginensis → Orospeda（Carthago Nova含む）、Africa → Carthage + Carthaginia
+const ROME_PC_PROVINCES     = new Set(['Latium', 'Etruria', 'Samnium', 'Apulia', 'Campania', 'Lucania'])
+const CARTHAGE_PC_PROVINCES = new Set(['Baetica', 'Carthage', 'Carthaginia', 'Orospeda'])
+
+function makeCUs(side: 'Rome' | 'Carthage', count: number, x: number, y: number, prefix: string): BoardPiece[] {
+  const img1 = side === 'Carthage' ? '/images/tkn-cus-CarthCU.png'  : '/images/tkn-cus-RomanCU.png'
+  const img2 = side === 'Carthage' ? '/images/tkn-cus-CarthCU1.png' : '/images/tkn-cus-RomanCU1.png'
+  return Array.from({ length: count }, (_, i) => ({
+    id: `${prefix}-${i}`, type: 'CU' as const, x, y,
+    imagePath: i % 2 === 0 ? img1 : img2,
+  }))
+}
+
+function buildScenario1(): BoardPiece[] {
+  const allCities = hannibalData.cities as City[]
+  const find = (name: string) => {
+    const c = allCities.find(city => city.name === name)
+    if (!c) throw new Error(`City not found: ${name}`)
+    return { x: c.x, y: c.y }
+  }
+
+  const nc  = find('Orospeda - New Carthage')  // Carthago Nova (ID:32)
+  const crt = find('Carthage - Carthage')        // Carthage       (ID:41)
+  const mas = find('Massilia - Massilia')         // Massilia       (ID:15)
+  const lil = find('Sicilia - Lilybaeum')         // Lilybaeum      (ID:94)
+
+  const generals: BoardPiece[] = [
+    { id: 'hannibal',  type: 'General', x: nc.x,  y: nc.y,  imagePath: '/images/tkn-gnrl-Hannibal.png',  label: 'Hannibal'  },
+    { id: 'hasdrubal', type: 'General', x: nc.x,  y: nc.y,  imagePath: '/images/tkn-gnrl-Hasdrubal.png', label: 'Hasdrubal' },
+    { id: 'hanno',     type: 'General', x: crt.x, y: crt.y, imagePath: '/images/tkn-gnrl-Hanno.png',     label: 'Hanno'     },
+    { id: 'p-scipio',  type: 'General', x: mas.x, y: mas.y, imagePath: '/images/tkn-gnrl-P. Scipio.png', label: 'P. Scipio' },
+    { id: 't-longus',  type: 'General', x: lil.x, y: lil.y, imagePath: '/images/tkn-gnrl-T. Longus.png', label: 'T. Longus' },
+  ]
+
+  const cus: BoardPiece[] = [
+    ...makeCUs('Carthage', 10, nc.x,  nc.y,  'cu-nc'),
+    ...makeCUs('Carthage',  2, crt.x, crt.y, 'cu-crt'),
+    ...makeCUs('Rome',      4, mas.x, mas.y, 'cu-mas'),
+    ...makeCUs('Rome',      4, lil.x, lil.y, 'cu-lil'),
+  ]
+
+  const pcs: BoardPiece[] = []
+  for (const city of allCities) {
+    if (!city.name.includes(' - ')) continue
+    const prov = city.name.split(' - ')[0]
+    if (ROME_PC_PROVINCES.has(prov)) {
+      pcs.push({ id: `pc-r-${city.name}`, type: 'PC', x: city.x, y: city.y, imagePath: '/images/tkn-PC-RomePC.png' })
+    } else if (CARTHAGE_PC_PROVINCES.has(prov)) {
+      pcs.push({ id: `pc-c-${city.name}`, type: 'PC', x: city.x, y: city.y, imagePath: '/images/tkn-PC-CarthPC.png' })
+    }
+  }
+
+  return [...generals, ...cus, ...pcs]
+}
+
+const INITIAL_PIECES: BoardPiece[] = buildScenario1()
 
 interface DragState {
   pieceId: string
@@ -287,10 +334,10 @@ function MapBoard({ cities, setPreview }: { cities: City[]; setPreview: SetPrevi
     }
   }
 
-  // スタック: 同一座標（四捨五入）のコマをグループ化し、ずらし量を計算
+  // スタック: PCマーカーを除く軍事ユニットのみグループ化
   const stackMap = new Map<string, string[]>()
   for (const p of pieces) {
-    if (p.id === drag?.pieceId) continue
+    if (p.id === drag?.pieceId || p.type === 'PC') continue
     const key = `${Math.round(p.x)},${Math.round(p.y)}`
     const arr = stackMap.get(key) ?? []
     arr.push(p.id)
@@ -308,8 +355,26 @@ function MapBoard({ cities, setPreview }: { cities: City[]; setPreview: SetPrevi
         style={{ maxWidth: '100%', height: 'auto', display: 'block', cursor: drag ? 'grabbing' : 'crosshair' }}
       />
 
-      {/* コマオーバーレイ */}
-      {pieces.map((piece) => {
+      {/* PCマーカーオーバーレイ（小さく固定、ドラッグなし） */}
+      {pieces.filter(p => p.type === 'PC').map((piece) => (
+        <div
+          key={piece.id}
+          style={{
+            position: 'absolute',
+            left: piece.x / sx - PC_SIZE / 2,
+            top:  piece.y / sy - PC_SIZE / 2,
+            width: PC_SIZE, height: PC_SIZE,
+            zIndex: 4, pointerEvents: 'none',
+          }}
+        >
+          <img src={piece.imagePath} alt="PC" draggable={false}
+            style={{ width: '100%', height: '100%', objectFit: 'contain',
+              filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.8))' }} />
+        </div>
+      ))}
+
+      {/* 軍事ユニットオーバーレイ（将軍・CU、ドラッグ可） */}
+      {pieces.filter(p => p.type !== 'PC').map((piece) => {
         const isDragging = drag?.pieceId === piece.id
         let dispX: number, dispY: number
 
@@ -331,7 +396,7 @@ function MapBoard({ cities, setPreview }: { cities: City[]; setPreview: SetPrevi
             onMouseEnter={() => {
               if (drag) return
               const key = `${Math.round(piece.x)},${Math.round(piece.y)}`
-              const others = pieces.filter(p => p.id !== piece.id && `${Math.round(p.x)},${Math.round(p.y)}` === key)
+              const others = pieces.filter(p => p.type !== 'PC' && p.id !== piece.id && `${Math.round(p.x)},${Math.round(p.y)}` === key)
               setPreview({ kind: 'piece', piece, stackedWith: others })
             }}
             onMouseLeave={() => setPreview(null)}
@@ -803,8 +868,8 @@ function BattleResolverModal({ onClose, setPreview }: { onClose: () => void; set
 function PreviewPanel({ data, cursor }: { data: PreviewData; cursor: { x: number; y: number } }) {
   if (!data) return null
 
-  const W = 220
-  const estimatedH = data.kind === 'card' ? 320 : data.kind === 'piece' ? 190 : 160
+  const W = 330
+  const estimatedH = data.kind === 'card' ? 480 : data.kind === 'piece' ? 285 : 240
   const margin = 12
   let left = cursor.x + 20
   let top  = cursor.y - estimatedH / 2
@@ -901,12 +966,13 @@ function PreviewPanel({ data, cursor }: { data: PreviewData; cursor: { x: number
 
   // 都市プレビュー
   if (data.kind === 'city') {
-    const romanPieces    = data.pieces.filter(p => GENERAL_STATS[p.label ?? '']?.side === 'Rome'     || p.imagePath.includes('Roman'))
-    const cartPieces     = data.pieces.filter(p => GENERAL_STATS[p.label ?? '']?.side === 'Carthage' || p.imagePath.includes('Carth'))
-    const controlColor   = romanPieces.length > cartPieces.length ? '#60a5fa'
-                         : cartPieces.length > romanPieces.length ? '#f87171' : '#94a3b8'
-    const controlLabel   = romanPieces.length > cartPieces.length ? 'Rome'
-                         : cartPieces.length > romanPieces.length ? 'Carthage' : 'Neutral'
+    // PCマーカーで支配状況を判定
+    const romePC  = data.pieces.find(p => p.type === 'PC' && p.imagePath.includes('RomePC'))
+    const carthPC = data.pieces.find(p => p.type === 'PC' && p.imagePath.includes('CarthPC'))
+    const controlColor = romePC ? '#60a5fa' : carthPC ? '#f87171' : '#94a3b8'
+    const controlLabel = romePC ? 'Rome'    : carthPC ? 'Carthage' : 'Neutral'
+    // 軍事ユニット（PCマーカー除外）
+    const militaryPieces = data.pieces.filter(p => p.type !== 'PC')
     return (
       <div style={panelStyle}>
         <div style={{ padding: '10px 12px 6px', borderBottom: '1px solid rgba(200,160,50,0.2)' }}>
@@ -917,10 +983,10 @@ function PreviewPanel({ data, cursor }: { data: PreviewData; cursor: { x: number
           </span>
         </div>
         <div style={{ padding: '8px 12px' }}>
-          {data.pieces.length === 0 ? (
+          {militaryPieces.length === 0 ? (
             <p style={{ fontSize: 10, color: '#64748b', margin: 0 }}>ユニットなし</p>
           ) : (
-            data.pieces.map(p => (
+            militaryPieces.map(p => (
               <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                 <img src={p.imagePath} alt={p.label ?? p.type}
                   style={{ width: 22, height: 22, objectFit: 'contain',
