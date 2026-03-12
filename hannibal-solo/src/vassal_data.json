@@ -1,0 +1,465 @@
+{
+  "metadata": {
+    "name": "Hannibal: Rome vs Carthage",
+    "vassalVersion": "3.2.16",
+    "version": "1.3"
+  },
+  "decks": {
+    "Strategy Deck": [
+      {
+        "name": null,
+        "gpid": "587"
+      },
+      {
+        "name": null,
+        "gpid": "588"
+      },
+      {
+        "name": null,
+        "gpid": "589"
+      },
+      {
+        "name": null,
+        "gpid": "590"
+      },
+      {
+        "name": null,
+        "gpid": "591"
+      },
+      {
+        "name": null,
+        "gpid": "592"
+      },
+      {
+        "name": null,
+        "gpid": "593"
+      },
+      {
+        "name": null,
+        "gpid": "594"
+      },
+      {
+        "name": null,
+        "gpid": "595"
+      },
+      {
+        "name": null,
+        "gpid": "596"
+      },
+      {
+        "name": null,
+        "gpid": "597"
+      },
+      {
+        "name": null,
+        "gpid": "598"
+      },
+      {
+        "name": null,
+        "gpid": "599"
+      },
+      {
+        "name": null,
+        "gpid": "600"
+      },
+      {
+        "name": null,
+        "gpid": "601"
+      },
+      {
+        "name": null,
+        "gpid": "602"
+      },
+      {
+        "name": null,
+        "gpid": "603"
+      },
+      {
+        "name": null,
+        "gpid": "604"
+      },
+      {
+        "name": null,
+        "gpid": "605"
+      },
+      {
+        "name": null,
+        "gpid": "606"
+      },
+      {
+        "name": null,
+        "gpid": "607"
+      },
+      {
+        "name": null,
+        "gpid": "608"
+      },
+      {
+        "name": null,
+        "gpid": "609"
+      },
+      {
+        "name": null,
+        "gpid": "610"
+      },
+      {
+        "name": null,
+        "gpid": "611"
+      },
+      {
+        "name": null,
+        "gpid": "612"
+      },
+      {
+        "name": null,
+        "gpid": "613"
+      },
+      {
+        "name": null,
+        "gpid": "614"
+      },
+      {
+        "name": null,
+        "gpid": "615"
+      },
+      {
+        "name": null,
+        "gpid": "616"
+      },
+      {
+        "name": null,
+        "gpid": "617"
+      },
+      {
+        "name": null,
+        "gpid": "618"
+      },
+      {
+        "name": null,
+        "gpid": "619"
+      },
+      {
+        "name": null,
+        "gpid": "620"
+      },
+      {
+        "name": null,
+        "gpid": "621"
+      },
+      {
+        "name": null,
+        "gpid": "622"
+      },
+      {
+        "name": null,
+        "gpid": "623"
+      },
+      {
+        "name": null,
+        "gpid": "624"
+      },
+      {
+        "name": null,
+        "gpid": "625"
+      },
+      {
+        "name": null,
+        "gpid": "626"
+      },
+      {
+        "name": null,
+        "gpid": "627"
+      },
+      {
+        "name": null,
+        "gpid": "628"
+      },
+      {
+        "name": null,
+        "gpid": "629"
+      },
+      {
+        "name": null,
+        "gpid": "630"
+      },
+      {
+        "name": null,
+        "gpid": "631"
+      },
+      {
+        "name": null,
+        "gpid": "632"
+      },
+      {
+        "name": null,
+        "gpid": "633"
+      },
+      {
+        "name": null,
+        "gpid": "634"
+      },
+      {
+        "name": null,
+        "gpid": "635"
+      },
+      {
+        "name": null,
+        "gpid": "636"
+      },
+      {
+        "name": null,
+        "gpid": "637"
+      },
+      {
+        "name": null,
+        "gpid": "638"
+      },
+      {
+        "name": null,
+        "gpid": "639"
+      },
+      {
+        "name": null,
+        "gpid": "640"
+      },
+      {
+        "name": null,
+        "gpid": "641"
+      },
+      {
+        "name": null,
+        "gpid": "642"
+      },
+      {
+        "name": null,
+        "gpid": "643"
+      },
+      {
+        "name": null,
+        "gpid": "644"
+      },
+      {
+        "name": null,
+        "gpid": "645"
+      },
+      {
+        "name": null,
+        "gpid": "646"
+      },
+      {
+        "name": null,
+        "gpid": "647"
+      },
+      {
+        "name": null,
+        "gpid": "648"
+      },
+      {
+        "name": null,
+        "gpid": "649"
+      },
+      {
+        "name": null,
+        "gpid": "650"
+      }
+    ],
+    "Discard Pile": [],
+    "Battle Deck": [
+      {
+        "name": null,
+        "gpid": "1019"
+      },
+      {
+        "name": null,
+        "gpid": "1020"
+      },
+      {
+        "name": null,
+        "gpid": "1021"
+      },
+      {
+        "name": null,
+        "gpid": "1022"
+      },
+      {
+        "name": null,
+        "gpid": "1023"
+      },
+      {
+        "name": null,
+        "gpid": "1024"
+      },
+      {
+        "name": null,
+        "gpid": "1025"
+      },
+      {
+        "name": null,
+        "gpid": "1026"
+      },
+      {
+        "name": null,
+        "gpid": "1027"
+      },
+      {
+        "name": null,
+        "gpid": "1028"
+      },
+      {
+        "name": null,
+        "gpid": "1029"
+      },
+      {
+        "name": null,
+        "gpid": "1030"
+      },
+      {
+        "name": null,
+        "gpid": "1031"
+      },
+      {
+        "name": null,
+        "gpid": "1032"
+      },
+      {
+        "name": null,
+        "gpid": "1033"
+      },
+      {
+        "name": null,
+        "gpid": "1034"
+      },
+      {
+        "name": null,
+        "gpid": "1035"
+      },
+      {
+        "name": null,
+        "gpid": "1036"
+      },
+      {
+        "name": null,
+        "gpid": "1037"
+      },
+      {
+        "name": null,
+        "gpid": "1038"
+      },
+      {
+        "name": null,
+        "gpid": "1039"
+      },
+      {
+        "name": null,
+        "gpid": "1040"
+      },
+      {
+        "name": null,
+        "gpid": "1041"
+      },
+      {
+        "name": null,
+        "gpid": "1042"
+      },
+      {
+        "name": null,
+        "gpid": "1043"
+      },
+      {
+        "name": null,
+        "gpid": "1044"
+      },
+      {
+        "name": null,
+        "gpid": "1045"
+      },
+      {
+        "name": null,
+        "gpid": "1046"
+      },
+      {
+        "name": null,
+        "gpid": "1047"
+      },
+      {
+        "name": null,
+        "gpid": "1048"
+      },
+      {
+        "name": null,
+        "gpid": "1049"
+      },
+      {
+        "name": null,
+        "gpid": "1050"
+      },
+      {
+        "name": null,
+        "gpid": "1051"
+      },
+      {
+        "name": null,
+        "gpid": "1052"
+      },
+      {
+        "name": null,
+        "gpid": "1053"
+      },
+      {
+        "name": null,
+        "gpid": "1054"
+      },
+      {
+        "name": null,
+        "gpid": "1055"
+      },
+      {
+        "name": null,
+        "gpid": "1056"
+      },
+      {
+        "name": null,
+        "gpid": "1057"
+      },
+      {
+        "name": null,
+        "gpid": "1058"
+      },
+      {
+        "name": null,
+        "gpid": "1059"
+      },
+      {
+        "name": null,
+        "gpid": "1060"
+      },
+      {
+        "name": null,
+        "gpid": "1061"
+      },
+      {
+        "name": null,
+        "gpid": "1062"
+      },
+      {
+        "name": null,
+        "gpid": "1063"
+      },
+      {
+        "name": null,
+        "gpid": "1064"
+      },
+      {
+        "name": null,
+        "gpid": "1065"
+      },
+      {
+        "name": null,
+        "gpid": "1066"
+      }
+    ],
+    "Roman Area": [],
+    "Carthaginian Area": []
+  },
+  "map_regions": []
+}

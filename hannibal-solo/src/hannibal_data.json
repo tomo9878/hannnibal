@@ -1,0 +1,1076 @@
+{
+  "cities": [
+    {
+      "name": "Liguria - Western Ligurians",
+      "x": 1402,
+      "y": 455
+    },
+    {
+      "name": "Liguria - Eastern Ligurians",
+      "x": 1516,
+      "y": 439
+    },
+    {
+      "name": "Baetica - Gades",
+      "x": 164,
+      "y": 1098
+    },
+    {
+      "name": "Baetica - Acci",
+      "x": 458,
+      "y": 1094
+    },
+    {
+      "name": "Baetica - Malaca",
+      "x": 319,
+      "y": 1098
+    },
+    {
+      "name": "Baetica - Hispalis",
+      "x": 205,
+      "y": 982
+    },
+    {
+      "name": "Baetica - Cordusa",
+      "x": 305,
+      "y": 964
+    },
+    {
+      "name": "Orospeda - Salaria",
+      "x": 447,
+      "y": 973
+    },
+    {
+      "name": "Orospeda - New Carthage",
+      "x": 591,
+      "y": 1059
+    },
+    {
+      "name": "Orospeda - Laminium",
+      "x": 563,
+      "y": 924
+    },
+    {
+      "name": "Orospeda - Dianium",
+      "x": 698,
+      "y": 967
+    },
+    {
+      "name": "Orospeda - Saguntum",
+      "x": 722,
+      "y": 858
+    },
+    {
+      "name": "Celtiberia - Arsa",
+      "x": 339,
+      "y": 842
+    },
+    {
+      "name": "Celtiberia - Salmantica",
+      "x": 365,
+      "y": 743
+    },
+    {
+      "name": "Celtiberia - Segovia",
+      "x": 476,
+      "y": 726
+    },
+    {
+      "name": "Celtiberia - Toletum",
+      "x": 469,
+      "y": 856
+    },
+    {
+      "name": "Celtiberia - Segobriga",
+      "x": 595,
+      "y": 801
+    },
+    {
+      "name": "Idubeda - Iberus",
+      "x": 649,
+      "y": 579
+    },
+    {
+      "name": "Idubeda - ilerda",
+      "x": 861,
+      "y": 614
+    },
+    {
+      "name": "Idubeda - Numantia",
+      "x": 518,
+      "y": 584
+    },
+    {
+      "name": "Idubeda - Bilbilis",
+      "x": 615,
+      "y": 672
+    },
+    {
+      "name": "Idubeda - Azaila",
+      "x": 733,
+      "y": 676
+    },
+    {
+      "name": "Idubeda - Dertosa",
+      "x": 795,
+      "y": 769
+    },
+    {
+      "name": "Idubeda - Tarraco",
+      "x": 918,
+      "y": 722
+    },
+    {
+      "name": "Massilia - Massilia",
+      "x": 1193,
+      "y": 524
+    },
+    {
+      "name": "Massilia - Narbo",
+      "x": 1021,
+      "y": 548
+    },
+    {
+      "name": "Massilia - Emporiae",
+      "x": 1025,
+      "y": 654
+    },
+    {
+      "name": "Massilia - Nemausus",
+      "x": 1103,
+      "y": 511
+    },
+    {
+      "name": "Massilia - Nice",
+      "x": 1302,
+      "y": 535
+    },
+    {
+      "name": "Gallia Transalpinia - Araceli",
+      "x": 674,
+      "y": 460
+    },
+    {
+      "name": "Gallia Transalpinia - Aquitani",
+      "x": 782,
+      "y": 413
+    },
+    {
+      "name": "Gallia Transalpinia - Tolosa",
+      "x": 895,
+      "y": 465
+    },
+    {
+      "name": "Gallia Transalpinia - Averni",
+      "x": 984,
+      "y": 364
+    },
+    {
+      "name": "Gallia Transalpinia - Gergovia",
+      "x": 1085,
+      "y": 310
+    },
+    {
+      "name": "Gallia Transalpinia - Rhone",
+      "x": 1186,
+      "y": 386
+    },
+    {
+      "name": "Gallia Transalpinia - Allobroges",
+      "x": 1260,
+      "y": 301
+    },
+    {
+      "name": "Gallia Transalpinia - Druentia",
+      "x": 1295,
+      "y": 413
+    },
+    {
+      "name": "Gallia Transalpinia - Isere",
+      "x": 1351,
+      "y": 248
+    },
+    {
+      "name": "Gallia Cisalpinia - Taurini",
+      "x": 1434,
+      "y": 336
+    },
+    {
+      "name": "Gallia Cisalpinia - Insubrians",
+      "x": 1510,
+      "y": 267
+    },
+    {
+      "name": "Gallia Cisalpinia - Verona",
+      "x": 1662,
+      "y": 285
+    },
+    {
+      "name": "Gallia Cisalpinia - Boii",
+      "x": 1588,
+      "y": 373
+    },
+    {
+      "name": "Gallia Cisalpinia - Mutina",
+      "x": 1684,
+      "y": 408
+    },
+    {
+      "name": "Etruria - Pisae",
+      "x": 1592,
+      "y": 494
+    },
+    {
+      "name": "Etruria - Faesulae",
+      "x": 1682,
+      "y": 517
+    },
+    {
+      "name": "Etruria - Falerii",
+      "x": 1746,
+      "y": 573
+    },
+    {
+      "name": "Etruria - Cosa",
+      "x": 1594,
+      "y": 589
+    },
+    {
+      "name": "Etruria - Tarquini",
+      "x": 1688,
+      "y": 629
+    },
+    {
+      "name": "Samnium - Ariminum",
+      "x": 1770,
+      "y": 473
+    },
+    {
+      "name": "Samnium - Firmum Picenum",
+      "x": 1841,
+      "y": 522
+    },
+    {
+      "name": "Samnium - Sena",
+      "x": 1885,
+      "y": 609
+    },
+    {
+      "name": "Samnium - Praeneste",
+      "x": 1825,
+      "y": 659
+    },
+    {
+      "name": "Samnium - Terventum",
+      "x": 1936,
+      "y": 687
+    },
+    {
+      "name": "Latium - Rome",
+      "x": 1748,
+      "y": 729
+    },
+    {
+      "name": "Campania - Capua",
+      "x": 1855,
+      "y": 750
+    },
+    {
+      "name": "Campania - Neapolis",
+      "x": 1904,
+      "y": 825
+    },
+    {
+      "name": "Apulia - Apri",
+      "x": 2026,
+      "y": 709
+    },
+    {
+      "name": "Apulia - Cannae",
+      "x": 2095,
+      "y": 770
+    },
+    {
+      "name": "Apulia - Beneventum",
+      "x": 1977,
+      "y": 782
+    },
+    {
+      "name": "Apulia - Brundisium",
+      "x": 2226,
+      "y": 820
+    },
+    {
+      "name": "Apulia - Tarentum",
+      "x": 2157,
+      "y": 848
+    },
+    {
+      "name": "Lucania - Heraclea",
+      "x": 2070,
+      "y": 866
+    },
+    {
+      "name": "Lucania - Paestium",
+      "x": 1986,
+      "y": 871
+    },
+    {
+      "name": "Lucania - Bruttium",
+      "x": 2050,
+      "y": 975
+    },
+    {
+      "name": "Lucania - Croton",
+      "x": 2147,
+      "y": 983
+    },
+    {
+      "name": "Lucania - Rhegium",
+      "x": 2046,
+      "y": 1073
+    },
+    {
+      "name": "Sicilia - Lilybaeum",
+      "x": 1766,
+      "y": 1103
+    },
+    {
+      "name": "Sicilia - Panormus",
+      "x": 1858,
+      "y": 1069
+    },
+    {
+      "name": "Sicilia - Agrigentum",
+      "x": 1847,
+      "y": 1184
+    },
+    {
+      "name": "Sicilia - Enna",
+      "x": 1923,
+      "y": 1161
+    },
+    {
+      "name": "Sicilia - Messana",
+      "x": 1974,
+      "y": 1075
+    },
+    {
+      "name": "Syracuse - Syracuse",
+      "x": 2005,
+      "y": 1190
+    },
+    {
+      "name": "Corsica Sardinia - Aleria",
+      "x": 1508,
+      "y": 665
+    },
+    {
+      "name": "Corsica Sardinia - Sassari",
+      "x": 1468,
+      "y": 782
+    },
+    {
+      "name": "Corsica Sardinia - Oristano",
+      "x": 1431,
+      "y": 883
+    },
+    {
+      "name": "Corsica Sardinia - Nuoro",
+      "x": 1531,
+      "y": 867
+    },
+    {
+      "name": "Corsica Sardinia - Carales",
+      "x": 1473,
+      "y": 987
+    },
+    {
+      "name": "Western Numidia - Icosium",
+      "x": 951,
+      "y": 1201
+    },
+    {
+      "name": "Western Numidia - Zuccabar",
+      "x": 912,
+      "y": 1293
+    },
+    {
+      "name": "Western Numidia - Tupusuctu",
+      "x": 1033,
+      "y": 1290
+    },
+    {
+      "name": "Western Numidia - Vescera",
+      "x": 1068,
+      "y": 1408
+    },
+    {
+      "name": "Western Numidia - Saldae",
+      "x": 1117,
+      "y": 1208
+    },
+    {
+      "name": "Eastern Numidia - Sitilis",
+      "x": 1151,
+      "y": 1312
+    },
+    {
+      "name": "Eastern Numidia - Cirta",
+      "x": 1251,
+      "y": 1264
+    },
+    {
+      "name": "Eastern Numidia - Thamugadi",
+      "x": 1239,
+      "y": 1380
+    },
+    {
+      "name": "Eastern Numidia - Thubursicu",
+      "x": 1361,
+      "y": 1327
+    },
+    {
+      "name": "Eastern Numidia - Thevestis",
+      "x": 1402,
+      "y": 1429
+    },
+    {
+      "name": "Carthaginia - Hippo Regius",
+      "x": 1342,
+      "y": 1210
+    },
+    {
+      "name": "Carthaginia - Thabraca",
+      "x": 1450,
+      "y": 1213
+    },
+    {
+      "name": "Carthaginia - Utica",
+      "x": 1530,
+      "y": 1154
+    },
+    {
+      "name": "Carthaginia - Zama",
+      "x": 1500,
+      "y": 1313
+    },
+    {
+      "name": "Carthaginia - Thapsus",
+      "x": 1543,
+      "y": 1418
+    },
+    {
+      "name": "Carthaginia - Tacapae",
+      "x": 1547,
+      "y": 1518
+    },
+    {
+      "name": "Carthaginia - Hadrumetum",
+      "x": 1605,
+      "y": 1328
+    },
+    {
+      "name": "Carthage - Carthage",
+      "x": 1595,
+      "y": 1228
+    },
+    {
+      "name": "Balearic Islands - Baleares",
+      "x": 966,
+      "y": 911
+    },
+    {
+      "name": "Turn 1",
+      "x": 2232,
+      "y": 958
+    },
+    {
+      "name": "Turn 2",
+      "x": 2232,
+      "y": 1012
+    },
+    {
+      "name": "Turn 3",
+      "x": 2232,
+      "y": 1066
+    },
+    {
+      "name": "Turn 4",
+      "x": 2232,
+      "y": 1119
+    },
+    {
+      "name": "Turn 5",
+      "x": 2232,
+      "y": 1173
+    },
+    {
+      "name": "Turn 6",
+      "x": 2232,
+      "y": 1227
+    },
+    {
+      "name": "Turn 7",
+      "x": 2232,
+      "y": 1281
+    },
+    {
+      "name": "Turn 8",
+      "x": 2232,
+      "y": 1335
+    },
+    {
+      "name": "Turn 9",
+      "x": 2232,
+      "y": 1389
+    },
+    {
+      "name": "Macedonia allied with Carthage",
+      "x": 1706,
+      "y": 1474
+    },
+    {
+      "name": "Syracuse allied with Carthage",
+      "x": 1774,
+      "y": 1473
+    },
+    {
+      "name": "Carthaginian Naval Victory",
+      "x": 1845,
+      "y": 1475
+    },
+    {
+      "name": "H. Gisbo Rest Position",
+      "x": 541,
+      "y": 1421
+    },
+    {
+      "name": "Hannibal Rest Position",
+      "x": 158,
+      "y": 1421
+    },
+    {
+      "name": "Hanno Rest Position",
+      "x": 350,
+      "y": 1421
+    },
+    {
+      "name": "Hasdrubal Rest Position",
+      "x": 254,
+      "y": 1421
+    },
+    {
+      "name": "Mago Rest Position",
+      "x": 446,
+      "y": 1421
+    },
+    {
+      "name": "A. Paulus Rest Position",
+      "x": 2119,
+      "y": 76
+    },
+    {
+      "name": "Fabius Rest Position",
+      "x": 1736,
+      "y": 76
+    },
+    {
+      "name": "Flaminius Rest Position",
+      "x": 1640,
+      "y": 76
+    },
+    {
+      "name": "G. Nero Rest Position",
+      "x": 1927,
+      "y": 76
+    },
+    {
+      "name": "Marcellus Rest Position",
+      "x": 1831,
+      "y": 76
+    },
+    {
+      "name": "P. Scipio Rest Position",
+      "x": 1448,
+      "y": 76
+    },
+    {
+      "name": "Scipio Africanus Rest Position",
+      "x": 2216,
+      "y": 76
+    },
+    {
+      "name": "T. Longus Rest Position",
+      "x": 1544,
+      "y": 76
+    },
+    {
+      "name": "Varro Rest Position",
+      "x": 2023,
+      "y": 76
+    }
+  ],
+  "strategy_cards": [
+    {
+      "name": null,
+      "gpid": "587"
+    },
+    {
+      "name": null,
+      "gpid": "588"
+    },
+    {
+      "name": null,
+      "gpid": "589"
+    },
+    {
+      "name": null,
+      "gpid": "590"
+    },
+    {
+      "name": null,
+      "gpid": "591"
+    },
+    {
+      "name": null,
+      "gpid": "592"
+    },
+    {
+      "name": null,
+      "gpid": "593"
+    },
+    {
+      "name": null,
+      "gpid": "594"
+    },
+    {
+      "name": null,
+      "gpid": "595"
+    },
+    {
+      "name": null,
+      "gpid": "596"
+    },
+    {
+      "name": null,
+      "gpid": "597"
+    },
+    {
+      "name": null,
+      "gpid": "598"
+    },
+    {
+      "name": null,
+      "gpid": "599"
+    },
+    {
+      "name": null,
+      "gpid": "600"
+    },
+    {
+      "name": null,
+      "gpid": "601"
+    },
+    {
+      "name": null,
+      "gpid": "602"
+    },
+    {
+      "name": null,
+      "gpid": "603"
+    },
+    {
+      "name": null,
+      "gpid": "604"
+    },
+    {
+      "name": null,
+      "gpid": "605"
+    },
+    {
+      "name": null,
+      "gpid": "606"
+    },
+    {
+      "name": null,
+      "gpid": "607"
+    },
+    {
+      "name": null,
+      "gpid": "608"
+    },
+    {
+      "name": null,
+      "gpid": "609"
+    },
+    {
+      "name": null,
+      "gpid": "610"
+    },
+    {
+      "name": null,
+      "gpid": "611"
+    },
+    {
+      "name": null,
+      "gpid": "612"
+    },
+    {
+      "name": null,
+      "gpid": "613"
+    },
+    {
+      "name": null,
+      "gpid": "614"
+    },
+    {
+      "name": null,
+      "gpid": "615"
+    },
+    {
+      "name": null,
+      "gpid": "616"
+    },
+    {
+      "name": null,
+      "gpid": "617"
+    },
+    {
+      "name": null,
+      "gpid": "618"
+    },
+    {
+      "name": null,
+      "gpid": "619"
+    },
+    {
+      "name": null,
+      "gpid": "620"
+    },
+    {
+      "name": null,
+      "gpid": "621"
+    },
+    {
+      "name": null,
+      "gpid": "622"
+    },
+    {
+      "name": null,
+      "gpid": "623"
+    },
+    {
+      "name": null,
+      "gpid": "624"
+    },
+    {
+      "name": null,
+      "gpid": "625"
+    },
+    {
+      "name": null,
+      "gpid": "626"
+    },
+    {
+      "name": null,
+      "gpid": "627"
+    },
+    {
+      "name": null,
+      "gpid": "628"
+    },
+    {
+      "name": null,
+      "gpid": "629"
+    },
+    {
+      "name": null,
+      "gpid": "630"
+    },
+    {
+      "name": null,
+      "gpid": "631"
+    },
+    {
+      "name": null,
+      "gpid": "632"
+    },
+    {
+      "name": null,
+      "gpid": "633"
+    },
+    {
+      "name": null,
+      "gpid": "634"
+    },
+    {
+      "name": null,
+      "gpid": "635"
+    },
+    {
+      "name": null,
+      "gpid": "636"
+    },
+    {
+      "name": null,
+      "gpid": "637"
+    },
+    {
+      "name": null,
+      "gpid": "638"
+    },
+    {
+      "name": null,
+      "gpid": "639"
+    },
+    {
+      "name": null,
+      "gpid": "640"
+    },
+    {
+      "name": null,
+      "gpid": "641"
+    },
+    {
+      "name": null,
+      "gpid": "642"
+    },
+    {
+      "name": null,
+      "gpid": "643"
+    },
+    {
+      "name": null,
+      "gpid": "644"
+    },
+    {
+      "name": null,
+      "gpid": "645"
+    },
+    {
+      "name": null,
+      "gpid": "646"
+    },
+    {
+      "name": null,
+      "gpid": "647"
+    },
+    {
+      "name": null,
+      "gpid": "648"
+    },
+    {
+      "name": null,
+      "gpid": "649"
+    },
+    {
+      "name": null,
+      "gpid": "650"
+    }
+  ],
+  "battle_cards": [
+    {
+      "name": null,
+      "gpid": "1019"
+    },
+    {
+      "name": null,
+      "gpid": "1020"
+    },
+    {
+      "name": null,
+      "gpid": "1021"
+    },
+    {
+      "name": null,
+      "gpid": "1022"
+    },
+    {
+      "name": null,
+      "gpid": "1023"
+    },
+    {
+      "name": null,
+      "gpid": "1024"
+    },
+    {
+      "name": null,
+      "gpid": "1025"
+    },
+    {
+      "name": null,
+      "gpid": "1026"
+    },
+    {
+      "name": null,
+      "gpid": "1027"
+    },
+    {
+      "name": null,
+      "gpid": "1028"
+    },
+    {
+      "name": null,
+      "gpid": "1029"
+    },
+    {
+      "name": null,
+      "gpid": "1030"
+    },
+    {
+      "name": null,
+      "gpid": "1031"
+    },
+    {
+      "name": null,
+      "gpid": "1032"
+    },
+    {
+      "name": null,
+      "gpid": "1033"
+    },
+    {
+      "name": null,
+      "gpid": "1034"
+    },
+    {
+      "name": null,
+      "gpid": "1035"
+    },
+    {
+      "name": null,
+      "gpid": "1036"
+    },
+    {
+      "name": null,
+      "gpid": "1037"
+    },
+    {
+      "name": null,
+      "gpid": "1038"
+    },
+    {
+      "name": null,
+      "gpid": "1039"
+    },
+    {
+      "name": null,
+      "gpid": "1040"
+    },
+    {
+      "name": null,
+      "gpid": "1041"
+    },
+    {
+      "name": null,
+      "gpid": "1042"
+    },
+    {
+      "name": null,
+      "gpid": "1043"
+    },
+    {
+      "name": null,
+      "gpid": "1044"
+    },
+    {
+      "name": null,
+      "gpid": "1045"
+    },
+    {
+      "name": null,
+      "gpid": "1046"
+    },
+    {
+      "name": null,
+      "gpid": "1047"
+    },
+    {
+      "name": null,
+      "gpid": "1048"
+    },
+    {
+      "name": null,
+      "gpid": "1049"
+    },
+    {
+      "name": null,
+      "gpid": "1050"
+    },
+    {
+      "name": null,
+      "gpid": "1051"
+    },
+    {
+      "name": null,
+      "gpid": "1052"
+    },
+    {
+      "name": null,
+      "gpid": "1053"
+    },
+    {
+      "name": null,
+      "gpid": "1054"
+    },
+    {
+      "name": null,
+      "gpid": "1055"
+    },
+    {
+      "name": null,
+      "gpid": "1056"
+    },
+    {
+      "name": null,
+      "gpid": "1057"
+    },
+    {
+      "name": null,
+      "gpid": "1058"
+    },
+    {
+      "name": null,
+      "gpid": "1059"
+    },
+    {
+      "name": null,
+      "gpid": "1060"
+    },
+    {
+      "name": null,
+      "gpid": "1061"
+    },
+    {
+      "name": null,
+      "gpid": "1062"
+    },
+    {
+      "name": null,
+      "gpid": "1063"
+    },
+    {
+      "name": null,
+      "gpid": "1064"
+    },
+    {
+      "name": null,
+      "gpid": "1065"
+    },
+    {
+      "name": null,
+      "gpid": "1066"
+    }
+  ],
+  "prototypes": {
+    "RAT": "",
+    "CAT": "",
+    "DuplicateRoutine": "",
+    "CUmovement": "",
+    "Genmovement": "",
+    "StrategyCards": "",
+    "BattleCards": "",
+    "Siege Points": ""
+  }
+}
