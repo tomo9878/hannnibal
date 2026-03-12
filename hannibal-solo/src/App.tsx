@@ -23,7 +23,7 @@ const STRATEGY_CARD_NAMES: string[] = [
   'Two Legions of Slaves Raised The Volones', 'Allied Auxiliaries',
   'Allied Auxiliaries', 'Allied Auxiliaries', 'Allied Auxiliaries',
   'Allied Auxiliaries', 'Opposing Fleet Breaks Siege', 'Adriatic Pirates',
-  'Epidemic', 'Pestilence', 'Tribal Resistance', 'Treachery within City',
+  'Epidemic', 'Prestilence', 'Tribal Resistance', 'Treachery within City',
   'Messenger Intercepted', 'Grain Shortage', 'Hanno Counsels Carthage',
   'Cato Counsels Rome', 'Ally Deserts', 'Storms at Sea',
   'Force March', 'Force March', 'Force March', 'Truce',
@@ -33,10 +33,17 @@ const STRATEGY_CARD_NAMES: string[] = [
 const INITIAL_DRAW_COUNT = 5
 const PRIORITIES = ['A', 'B', 'C', 'D', 'E'] as const
 
+// インデックスから画像パスを生成（実ファイル名: cards-strg-01 Corsica and Sardinia Revolt.png）
+const STRATEGY_DECK = STRATEGY_CARD_NAMES.map((name, i) => ({
+  name,
+  imagePath: `/images/cards-strg-${String(i + 1).padStart(2, '0')} ${name}.png`,
+}))
+
 type City = { name: string; x: number; y: number }
 
 interface CardInHand {
   name: string
+  imagePath: string  // /images/cards-strg-XX.png
   priority: string   // 'A'〜'E'
   isRevealed: boolean
 }
@@ -224,7 +231,7 @@ const PRIORITY_STYLE: Record<string, { bg: string; fg: string }> = {
 }
 
 // ── CardTile ─────────────────────────────────────────────────────────
-// 1枚のカードを表示するタイル（56×88px）
+// 1枚のカードを表示するタイル（52×82px）
 function CardTile({
   card,
   onReveal,
@@ -232,6 +239,7 @@ function CardTile({
   card: CardInHand
   onReveal?: () => void
 }) {
+  const [imgError, setImgError] = useState(false)
   const ps = PRIORITY_STYLE[card.priority]
 
   if (!card.isRevealed) {
@@ -260,19 +268,30 @@ function CardTile({
       className="relative flex flex-col rounded-md border border-slate-500 bg-slate-600 overflow-hidden"
       style={{ width: 52, height: 82 }}
     >
-      {/* 優先順位バッジ（左上） */}
+      {/* 優先順位バッジ（左上・絶対配置） */}
       <div
-        className="text-xs font-bold px-1 leading-5 shrink-0"
+        className="absolute top-0 left-0 text-xs font-bold px-1 leading-5 z-10"
         style={{ backgroundColor: ps.bg, color: ps.fg }}
       >
         {card.priority}
       </div>
-      {/* カード名（中央） */}
-      <div className="flex-1 flex items-center justify-center px-1 pb-1">
-        <span className="text-slate-100 text-center leading-tight" style={{ fontSize: 8 }}>
-          {card.name}
-        </span>
-      </div>
+
+      {/* カード画像 or フォールバック */}
+      {!imgError ? (
+        <img
+          src={card.imagePath}
+          alt={card.name}
+          onError={() => setImgError(true)}
+          className="w-full h-full object-cover"
+        />
+      ) : (
+        // 画像読み込み失敗時: カード名テキストを表示
+        <div className="flex-1 flex items-center justify-center px-1 pt-5 pb-1">
+          <span className="text-slate-100 text-center leading-tight" style={{ fontSize: 8 }}>
+            {card.name}
+          </span>
+        </div>
+      )}
     </div>
   )
 }
@@ -284,12 +303,18 @@ function CardDealPanel() {
 
   // 山札をシャッフルして交互に INITIAL_DRAW_COUNT 枚ずつ配布
   const dealCards = () => {
-    const shuffled = [...STRATEGY_CARD_NAMES].sort(() => Math.random() - 0.5)
+    // STRATEGY_DECK をシャッフル（name + imagePath のペアを保持）
+    const shuffled = [...STRATEGY_DECK].sort(() => Math.random() - 0.5)
     const pCards: CardInHand[] = []
     const oCards: CardInHand[] = []
 
     for (let i = 0; i < INITIAL_DRAW_COUNT * 2; i++) {
-      const entry: CardInHand = { name: shuffled[i], priority: '', isRevealed: false }
+      const entry: CardInHand = {
+        name: shuffled[i].name,
+        imagePath: shuffled[i].imagePath,
+        priority: '',
+        isRevealed: false,
+      }
       if (i % 2 === 0) pCards.push(entry)
       else oCards.push(entry)
     }
