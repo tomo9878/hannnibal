@@ -39,12 +39,36 @@ const STRATEGY_DECK = STRATEGY_CARD_NAMES.map((name, i) => ({
   imagePath: `/images/cards-strg-${String(i + 1).padStart(2, '0')} ${name}.png`,
 }))
 
+// ── バトルカードデッキ定義 ────────────────────────────────────────────
+const BATTLE_CARD_TYPES = [
+  { name: 'Frontal Assault',    count: 12, imagePath: '/images/cards-btl-Frontal Assault.png' },
+  { name: 'Flank Left',         count: 9,  imagePath: '/images/cards-btl-Flank Left.png' },
+  { name: 'Flank Right',        count: 9,  imagePath: '/images/cards-btl-Flank Right.png' },
+  { name: 'Probe',              count: 8,  imagePath: '/images/cards-btl-Probe.png' },
+  { name: 'Double Envelopment', count: 6,  imagePath: '/images/cards-btl-Double Envelopment.png' },
+  { name: 'Reserve',            count: 4,  imagePath: '/images/cards-btl-Reserve.png' },
+] as const
+
+// 48枚の初期バトルデッキ（シャッフル前のマスターコピー）
+const FULL_BATTLE_DECK = BATTLE_CARD_TYPES.flatMap(({ name, count, imagePath }) =>
+  Array.from({ length: count }, () => ({ name, imagePath }))
+)
+
+const shuffle = <T,>(arr: T[]): T[] => [...arr].sort(() => Math.random() - 0.5)
+
 type City = { name: string; x: number; y: number }
 
 interface CardInHand {
   name: string
   imagePath: string  // /images/cards-strg-XX.png
   priority: string   // 'A'〜'E'
+  isRevealed: boolean
+}
+
+interface BattleCard {
+  name: string
+  imagePath: string  // /images/cards-btl-XXX.png
+  priority: string   // AI側のみ 'A','B','C'...、プレイヤー側は ''
   isRevealed: boolean
 }
 
@@ -383,10 +407,224 @@ function CardDealPanel() {
   )
 }
 
+// ── BattleCardTile ───────────────────────────────────────────────────
+// バトルカード1枚（64×100px）
+const BATTLE_BACK = '/images/cards-btl-Back.png'
+
+function BattleCardTile({
+  card,
+  onReveal,
+}: {
+  card: BattleCard
+  onReveal?: () => void
+}) {
+  const [imgError, setImgError] = useState(false)
+  const ps = card.priority ? PRIORITY_STYLE[card.priority] : null
+
+  if (!card.isRevealed) {
+    return (
+      <button
+        onClick={onReveal}
+        title="クリックで公開"
+        className="relative flex-shrink-0 rounded-md overflow-hidden border-2 border-slate-600 hover:border-yellow-400 transition-colors"
+        style={{ width: 64, height: 100 }}
+      >
+        <img src={BATTLE_BACK} alt="Card back" className="w-full h-full object-cover" />
+        {ps && (
+          <span
+            className="absolute top-1 left-1 text-sm font-black leading-none rounded px-1"
+            style={{ color: ps.fg, backgroundColor: ps.bg }}
+          >
+            {card.priority}
+          </span>
+        )}
+      </button>
+    )
+  }
+
+  return (
+    <div
+      className="relative flex-shrink-0 rounded-md overflow-hidden border border-slate-400"
+      style={{ width: 64, height: 100 }}
+    >
+      {!imgError ? (
+        <img
+          src={card.imagePath}
+          alt={card.name}
+          onError={() => setImgError(true)}
+          className="w-full h-full object-cover"
+        />
+      ) : (
+        <div className="w-full h-full bg-slate-600 flex items-center justify-center p-1">
+          <span className="text-white text-center leading-tight" style={{ fontSize: 9 }}>
+            {card.name}
+          </span>
+        </div>
+      )}
+      {ps && (
+        <span
+          className="absolute top-1 left-1 text-xs font-bold leading-none rounded px-1"
+          style={{ color: ps.fg, backgroundColor: ps.bg }}
+        >
+          {card.priority}
+        </span>
+      )}
+    </div>
+  )
+}
+
+// ── BattleResolverModal ──────────────────────────────────────────────
+function BattleResolverModal({ onClose }: { onClose: () => void }) {
+  const [drawPile, setDrawPile] = useState<typeof FULL_BATTLE_DECK>(() => shuffle(FULL_BATTLE_DECK))
+  const [discardPile, setDiscardPile] = useState<typeof FULL_BATTLE_DECK>([])
+  const [romeHand, setRomeHand] = useState<BattleCard[]>([])
+  const [carthageHand, setCarthageHand] = useState<BattleCard[]>([])
+  const [romeCount, setRomeCount] = useState(3)
+  const [carthageCount, setCarthageCount] = useState(3)
+
+  // 山札が足りなければ捨て札をシャッフルして補充
+  const ensureDeck = (draw: typeof drawPile, discard: typeof discardPile, needed: number) => {
+    if (draw.length >= needed) return { draw, discard }
+    const reshuffled = shuffle([...draw, ...discard])
+    return { draw: reshuffled, discard: [] }
+  }
+
+  const dealBattleCards = () => {
+    const needed = romeCount + carthageCount
+    const { draw, discard } = ensureDeck(drawPile, discardPile, needed)
+    const drawn = draw.slice(0, needed)
+    const remaining = draw.slice(needed)
+
+    const rCards: BattleCard[] = drawn.slice(0, romeCount).map((c) => ({
+      ...c, priority: '', isRevealed: true,
+    }))
+    const cCards: BattleCard[] = drawn.slice(romeCount).map((c, i) => ({
+      ...c,
+      priority: String.fromCharCode(65 + i),  // A, B, C...
+      isRevealed: false,
+    }))
+
+    setDrawPile(remaining)
+    setDiscardPile(discard)
+    setRomeHand(rCards)
+    setCarthageHand(cCards)
+  }
+
+  const revealCarthageCard = (idx: number) => {
+    setCarthageHand(prev => prev.map((c, i) => i === idx ? { ...c, isRevealed: true } : c))
+  }
+
+  // 手札を捨て札に戻す
+  const clearBattle = () => {
+    const returned = [
+      ...romeHand.map(({ name, imagePath }) => ({ name, imagePath })),
+      ...carthageHand.map(({ name, imagePath }) => ({ name, imagePath })),
+    ]
+    setDiscardPile(prev => [...prev, ...returned])
+    setRomeHand([])
+    setCarthageHand([])
+  }
+
+  const hasHands = romeHand.length > 0 || carthageHand.length > 0
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="bg-slate-900 border border-slate-600 rounded-xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden">
+        {/* ヘッダー */}
+        <div className="flex items-center justify-between px-5 py-3 bg-slate-800 border-b border-slate-700">
+          <h2 className="text-yellow-400 font-bold tracking-wide">⚔ Battle Resolver</h2>
+          <div className="flex items-center gap-4 text-xs text-slate-400">
+            <span>山札: <strong className="text-white">{drawPile.length}</strong></span>
+            <span>捨て札: <strong className="text-white">{discardPile.length}</strong></span>
+            <button
+              onClick={onClose}
+              className="text-slate-400 hover:text-white text-lg leading-none ml-2"
+            >✕</button>
+          </div>
+        </div>
+
+        <div className="p-5 space-y-5">
+          {/* 枚数入力 + ボタン */}
+          <div className="flex flex-wrap items-end gap-4">
+            <label className="flex flex-col gap-1 text-xs text-slate-400">
+              Rome cards
+              <input
+                type="number" min={1} max={10} value={romeCount}
+                onChange={(e) => setRomeCount(Math.max(1, Number(e.target.value)))}
+                className="w-16 bg-slate-700 border border-slate-500 rounded px-2 py-1 text-white text-center"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-slate-400">
+              Carthage cards
+              <input
+                type="number" min={1} max={10} value={carthageCount}
+                onChange={(e) => setCarthageCount(Math.max(1, Number(e.target.value)))}
+                className="w-16 bg-slate-700 border border-slate-500 rounded px-2 py-1 text-white text-center"
+              />
+            </label>
+            <button
+              onClick={dealBattleCards}
+              className="bg-red-700 hover:bg-red-600 text-white font-bold px-4 py-2 rounded transition-colors"
+            >
+              🂠 Deal Battle Cards
+            </button>
+            {hasHands && (
+              <button
+                onClick={clearBattle}
+                className="bg-slate-600 hover:bg-slate-500 text-white px-4 py-2 rounded transition-colors text-sm"
+              >
+                Clear Battle
+              </button>
+            )}
+          </div>
+
+          {hasHands && (
+            <div className="space-y-4">
+              {/* Carthage AI Hand */}
+              <div className="space-y-2">
+                <h3 className="text-red-400 font-bold text-xs tracking-wide uppercase">
+                  Carthage AI
+                  <span className="ml-2 text-slate-500 font-normal normal-case">— クリックで公開</span>
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {carthageHand.map((card, i) => (
+                    <BattleCardTile key={i} card={card} onReveal={() => revealCarthageCard(i)} />
+                  ))}
+                </div>
+              </div>
+
+              {/* Rome Player Hand */}
+              <div className="space-y-2">
+                <h3 className="text-blue-400 font-bold text-xs tracking-wide uppercase">Rome (Player)</h3>
+                <div className="flex flex-wrap gap-2">
+                  {romeHand.map((card, i) => (
+                    <BattleCardTile key={i} card={card} />
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* デッキ切れ警告 */}
+          {drawPile.length < 6 && (
+            <p className="text-yellow-400 text-xs">
+              ⚠ 山札残り {drawPile.length} 枚。次のディール時に捨て札 ({discardPile.length} 枚) を自動補充します。
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── App ──────────────────────────────────────────────────────────────
 
 export default function App() {
   const cities = hannibalData.cities as City[]
+  const [battleOpen, setBattleOpen] = useState(false)
 
   return (
     <div className="flex h-screen bg-slate-900 text-white overflow-hidden">
@@ -405,9 +643,19 @@ export default function App() {
 
       {/* 右: 情報パネル */}
       <div className="w-80 shrink-0 flex flex-col gap-3 p-3 overflow-y-auto border-l border-slate-700">
+        {/* Start Battle ボタン */}
+        <button
+          onClick={() => setBattleOpen(true)}
+          className="w-full bg-red-800 hover:bg-red-700 text-white font-bold py-2 rounded transition-colors"
+        >
+          ⚔ Start Battle
+        </button>
         <StukaJoePanel />
         <CardDealPanel />
       </div>
+
+      {/* Battle Resolver モーダル */}
+      {battleOpen && <BattleResolverModal onClose={() => setBattleOpen(false)} />}
     </div>
   )
 }
