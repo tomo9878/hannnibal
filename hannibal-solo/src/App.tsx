@@ -82,7 +82,7 @@ interface DiceResult {
 // ── ボードコマ ───────────────────────────────────────────────────────
 const SNAP_THRESHOLD = 30     // スナップ判定距離（canvas座標系px）
 const PIECE_SIZE = 36         // 画面上の表示サイズ（px）
-const PC_SIZE    = 18         // PCマーカーの表示サイズ（px）
+const PC_SIZE    = 38         // PCマーカーの表示サイズ（px）
 
 interface BoardPiece {
   id: string
