@@ -91,7 +91,14 @@ interface BoardPiece {
   y: number          // canvas座標 (0〜1532)
   imagePath: string
   label?: string
+  strength?: number  // 従属CU数（将軍のみ）
 }
+
+// ── 選択状態 ─────────────────────────────────────────────────────────
+type SelectionState =
+  | { kind: 'general'; pieceId: string }
+  | { kind: 'city';    cityName: string }
+  | null
 
 // ── シナリオ1 初期配置 ────────────────────────────────────────────────
 
@@ -100,15 +107,6 @@ interface BoardPiece {
 // ※ Carthaginensis → Orospeda（Carthago Nova含む）、Africa → Carthage + Carthaginia
 const ROME_PC_PROVINCES     = new Set(['Latium', 'Etruria', 'Samnium', 'Apulia', 'Campania', 'Lucania'])
 const CARTHAGE_PC_PROVINCES = new Set(['Baetica', 'Carthage', 'Carthaginia', 'Orospeda'])
-
-function makeCUs(side: 'Rome' | 'Carthage', count: number, x: number, y: number, prefix: string): BoardPiece[] {
-  const img1 = side === 'Carthage' ? '/images/tkn-cus-CarthCU.png'  : '/images/tkn-cus-RomanCU.png'
-  const img2 = side === 'Carthage' ? '/images/tkn-cus-CarthCU1.png' : '/images/tkn-cus-RomanCU1.png'
-  return Array.from({ length: count }, (_, i) => ({
-    id: `${prefix}-${i}`, type: 'CU' as const, x, y,
-    imagePath: i % 2 === 0 ? img1 : img2,
-  }))
-}
 
 function buildScenario1(): BoardPiece[] {
   const allCities = hannibalData.cities as City[]
@@ -123,19 +121,13 @@ function buildScenario1(): BoardPiece[] {
   const mas = find('Massilia - Massilia')         // Massilia       (ID:15)
   const lil = find('Sicilia - Lilybaeum')         // Lilybaeum      (ID:94)
 
+  // 兵力 (strength) は従属CU数。Hannibal+Hasdrubal合計10、Hanno 2、P.Scipio 4、T.Longus 4
   const generals: BoardPiece[] = [
-    { id: 'hannibal',  type: 'General', x: nc.x,  y: nc.y,  imagePath: '/images/tkn-gnrl-Hannibal.png',  label: 'Hannibal'  },
-    { id: 'hasdrubal', type: 'General', x: nc.x,  y: nc.y,  imagePath: '/images/tkn-gnrl-Hasdrubal.png', label: 'Hasdrubal' },
-    { id: 'hanno',     type: 'General', x: crt.x, y: crt.y, imagePath: '/images/tkn-gnrl-Hanno.png',     label: 'Hanno'     },
-    { id: 'p-scipio',  type: 'General', x: mas.x, y: mas.y, imagePath: '/images/tkn-gnrl-P. Scipio.png', label: 'P. Scipio' },
-    { id: 't-longus',  type: 'General', x: lil.x, y: lil.y, imagePath: '/images/tkn-gnrl-T. Longus.png', label: 'T. Longus' },
-  ]
-
-  const cus: BoardPiece[] = [
-    ...makeCUs('Carthage', 10, nc.x,  nc.y,  'cu-nc'),
-    ...makeCUs('Carthage',  2, crt.x, crt.y, 'cu-crt'),
-    ...makeCUs('Rome',      4, mas.x, mas.y, 'cu-mas'),
-    ...makeCUs('Rome',      4, lil.x, lil.y, 'cu-lil'),
+    { id: 'hannibal',  type: 'General', x: nc.x,  y: nc.y,  imagePath: '/images/tkn-gnrl-Hannibal.png',  label: 'Hannibal',  strength: 7 },
+    { id: 'hasdrubal', type: 'General', x: nc.x,  y: nc.y,  imagePath: '/images/tkn-gnrl-Hasdrubal.png', label: 'Hasdrubal', strength: 3 },
+    { id: 'hanno',     type: 'General', x: crt.x, y: crt.y, imagePath: '/images/tkn-gnrl-Hanno.png',     label: 'Hanno',     strength: 2 },
+    { id: 'p-scipio',  type: 'General', x: mas.x, y: mas.y, imagePath: '/images/tkn-gnrl-P. Scipio.png', label: 'P. Scipio', strength: 4 },
+    { id: 't-longus',  type: 'General', x: lil.x, y: lil.y, imagePath: '/images/tkn-gnrl-T. Longus.png', label: 'T. Longus', strength: 4 },
   ]
 
   const pcs: BoardPiece[] = []
@@ -149,7 +141,7 @@ function buildScenario1(): BoardPiece[] {
     }
   }
 
-  return [...generals, ...cus, ...pcs]
+  return [...generals, ...pcs]
 }
 
 const INITIAL_PIECES: BoardPiece[] = buildScenario1()
@@ -191,12 +183,18 @@ type SetPreviewFn = (data: PreviewData) => void
 
 // ── MapBoard ─────────────────────────────────────────────────────────
 
-function MapBoard({ cities, setPreview }: { cities: City[]; setPreview: SetPreviewFn }) {
-  const canvasRef  = useRef<HTMLCanvasElement>(null)
-  const wrapperRef = useRef<HTMLDivElement>(null)
-  const dragRef    = useRef<DragState | null>(null)
+function MapBoard({ cities, setPreview, setSelection, pieces, setPieces }: {
+  cities: City[]
+  setPreview: SetPreviewFn
+  setSelection: (sel: SelectionState) => void
+  pieces: BoardPiece[]
+  setPieces: React.Dispatch<React.SetStateAction<BoardPiece[]>>
+}) {
+  const canvasRef       = useRef<HTMLCanvasElement>(null)
+  const wrapperRef      = useRef<HTMLDivElement>(null)
+  const dragRef         = useRef<DragState | null>(null)
+  const mouseDownPosRef = useRef<{ x: number; y: number } | null>(null)
 
-  const [pieces,      setPieces]      = useState<BoardPiece[]>(INITIAL_PIECES)
   const [drag,        setDrag]        = useState<DragState | null>(null)
   const [contextMenu, setContextMenu] = useState<{ screenX: number; screenY: number; city: City } | null>(null)
   // 画像ロード後・リサイズ後にコマ位置を再計算するためのトリガー
@@ -265,6 +263,17 @@ function MapBoard({ cities, setPreview }: { cities: City[]; setPreview: SetPrevi
     const onUp = (e: MouseEvent) => {
       const d = dragRef.current
       if (!d) return
+
+      // クリック判定（移動量が小さい場合は将軍を選択）
+      const startPos = mouseDownPosRef.current
+      const moved = startPos ? Math.hypot(e.clientX - startPos.x, e.clientY - startPos.y) : 999
+      mouseDownPosRef.current = null
+      if (moved < 6) {
+        setSelection({ kind: 'general', pieceId: d.pieceId })
+        setDrag(null)
+        return
+      }
+
       const rect = canvasRef.current?.getBoundingClientRect()
       if (!rect) return
       const { sx, sy } = getScale()
@@ -304,6 +313,7 @@ function MapBoard({ cities, setPreview }: { cities: City[]; setPreview: SetPrevi
   const handlePieceMouseDown = (pieceId: string, e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
+    mouseDownPosRef.current = { x: e.clientX, y: e.clientY }
     const rect = canvasRef.current?.getBoundingClientRect()
     if (!rect) return
     const { sx, sy } = getScale()
@@ -395,6 +405,20 @@ function MapBoard({ cities, setPreview }: { cities: City[]; setPreview: SetPrevi
         onMouseMove={handleCanvasMouseMove}
         onMouseLeave={() => { if (!drag) setPreview(null) }}
         onContextMenu={(e) => handleContextMenu(e, true)}
+        onClick={(e) => {
+          if (dragRef.current) return
+          const { sx, sy } = getScale()
+          const rect = canvasRef.current!.getBoundingClientRect()
+          const cx = (e.clientX - rect.left) * sx
+          const cy = (e.clientY - rect.top)  * sy
+          let nearest: City | null = null, minDist = Infinity
+          for (const city of cities) {
+            const d = Math.hypot(city.x - cx, city.y - cy)
+            if (d < 20 && d < minDist) { minDist = d; nearest = city }
+          }
+          if (nearest) setSelection({ kind: 'city', cityName: nearest.name })
+          else setSelection(null)
+        }}
         style={{ maxWidth: '100%', height: 'auto', display: 'block', cursor: drag ? 'grabbing' : 'crosshair' }}
       />
 
@@ -476,6 +500,19 @@ function MapBoard({ cities, setPreview }: { cities: City[]; setPreview: SetPrevi
                 {piece.label}
               </div>
             )}
+            {/* 兵力バッジ（将軍のみ） */}
+            {piece.type === 'General' && piece.strength !== undefined && !isDragging && (
+              <div style={{
+                position: 'absolute', top: -6, right: -6,
+                minWidth: 15, height: 15, borderRadius: 8,
+                background: '#1e293b', border: '1px solid #fbbf24',
+                fontSize: 9, fontWeight: 900, color: '#fbbf24',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: '0 2px', pointerEvents: 'none',
+              }}>
+                {piece.strength}
+              </div>
+            )}
           </div>
         )
       })}
@@ -527,6 +564,139 @@ function MapBoard({ cities, setPreview }: { cities: City[]; setPreview: SetPrevi
 
     </div>
   )
+}
+
+// ── SelectionPanel ───────────────────────────────────────────────────
+
+function SelectionPanel({ selection, pieces, setPieces, cities, setSelection }: {
+  selection: SelectionState
+  pieces: BoardPiece[]
+  setPieces: React.Dispatch<React.SetStateAction<BoardPiece[]>>
+  cities: City[]
+  setSelection: (sel: SelectionState) => void
+}) {
+  const adjustStrength = (pieceId: string, delta: number) => {
+    setPieces(prev => prev.map(p =>
+      p.id === pieceId ? { ...p, strength: Math.max(0, (p.strength ?? 0) + delta) } : p
+    ))
+  }
+
+  const renderGeneral = (piece: BoardPiece) => {
+    const stats = piece.label ? GENERAL_STATS[piece.label] : null
+    const sideColor = stats?.side === 'Rome' ? '#60a5fa' : stats?.side === 'Carthage' ? '#f87171' : '#94a3b8'
+    return (
+      <div key={piece.id} className="space-y-3">
+        {/* 肖像 + 名前 */}
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <img src={piece.imagePath} alt={piece.label}
+            style={{ width: 80, height: 80, objectFit: 'contain',
+              filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.8))' }} />
+          <div>
+            <p style={{ fontSize: 16, fontWeight: 700, color: '#f0e6b0', margin: '0 0 4px' }}>
+              {piece.label ?? piece.type}
+            </p>
+            {stats && <p style={{ fontSize: 11, color: sideColor, fontWeight: 600, margin: 0 }}>{stats.side}</p>}
+          </div>
+        </div>
+        {/* 兵力 */}
+        <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: '10px 12px' }}>
+          <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 8px' }}>兵力 (CU)</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <button
+              onClick={() => adjustStrength(piece.id, -1)}
+              style={{ width: 34, height: 34, borderRadius: 6, background: '#dc2626',
+                border: 'none', color: 'white', fontSize: 22, fontWeight: 700,
+                cursor: 'pointer', lineHeight: 1 }}
+            >−</button>
+            <span style={{ fontSize: 32, fontWeight: 900, color: '#fbbf24',
+              minWidth: 44, textAlign: 'center' }}>
+              {piece.strength ?? 0}
+            </span>
+            <button
+              onClick={() => adjustStrength(piece.id, +1)}
+              style={{ width: 34, height: 34, borderRadius: 6, background: '#16a34a',
+                border: 'none', color: 'white', fontSize: 22, fontWeight: 700,
+                cursor: 'pointer', lineHeight: 1 }}
+            >＋</button>
+          </div>
+        </div>
+        {/* 能力値 */}
+        {stats && (
+          <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: '10px 16px' }}>
+            <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 8px' }}>能力値</p>
+            <div style={{ display: 'flex', gap: 24 }}>
+              <div style={{ textAlign: 'center' }}>
+                <p style={{ fontSize: 26, fontWeight: 900, color: '#fbbf24', margin: 0 }}>{stats.strategy}</p>
+                <p style={{ fontSize: 10, color: '#94a3b8', margin: 0 }}>Strategy</p>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <p style={{ fontSize: 26, fontWeight: 900, color: '#fbbf24', margin: 0 }}>{stats.combat}</p>
+                <p style={{ fontSize: 10, color: '#94a3b8', margin: 0 }}>Combat</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  if (!selection) {
+    return (
+      <div className="bg-slate-800 rounded p-4">
+        <h2 className="text-yellow-400 font-bold text-sm tracking-wide uppercase mb-2">Selection Details</h2>
+        <p className="text-slate-500 text-xs">将軍または都市をクリックして詳細を表示</p>
+      </div>
+    )
+  }
+
+  if (selection.kind === 'general') {
+    const piece = pieces.find(p => p.id === selection.pieceId)
+    if (!piece) return null
+    return (
+      <div className="bg-slate-800 rounded p-4">
+        <h2 className="text-yellow-400 font-bold text-sm tracking-wide uppercase mb-3">Selection Details</h2>
+        {renderGeneral(piece)}
+      </div>
+    )
+  }
+
+  if (selection.kind === 'city') {
+    const city = cities.find(c => c.name === selection.cityName)
+    if (!city) return null
+    const generals = pieces.filter(p =>
+      p.type === 'General' &&
+      Math.round(p.x) === Math.round(city.x) &&
+      Math.round(p.y) === Math.round(city.y)
+    )
+    const cityLabel = city.name.includes(' - ') ? city.name.split(' - ')[1] : city.name
+    return (
+      <div className="bg-slate-800 rounded p-4">
+        <h2 className="text-yellow-400 font-bold text-sm tracking-wide uppercase mb-1">Selection Details</h2>
+        <p className="text-slate-400 text-xs mb-3">{cityLabel}</p>
+        {generals.length === 0 ? (
+          <p className="text-slate-500 text-xs">この都市に将軍はいません</p>
+        ) : (
+          <div className="space-y-4">
+            {generals.map((g, i) => (
+              <div key={g.id}>
+                <button
+                  onClick={() => setSelection({ kind: 'general', pieceId: g.id })}
+                  style={{ background: 'none', border: 'none', padding: 0, width: '100%', cursor: 'pointer', textAlign: 'left' }}
+                >
+                  {renderGeneral(g)}
+                </button>
+                {i < generals.length - 1 && (
+                  <hr style={{ borderColor: 'rgba(200,160,50,0.2)', margin: '12px 0 0' }} />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  return null
 }
 
 // ── StukaJoePanel ────────────────────────────────────────────────────
@@ -1099,6 +1269,8 @@ export default function App() {
   const [battleOpen, setBattleOpen] = useState(false)
   const [preview,    setPreview]    = useState<PreviewData>(null)
   const [cursor,     setCursor]     = useState({ x: 0, y: 0 })
+  const [pieces,     setPieces]     = useState<BoardPiece[]>(INITIAL_PIECES)
+  const [selection,  setSelection]  = useState<SelectionState>(null)
 
   // グローバルカーソル追跡
   useEffect(() => {
@@ -1115,10 +1287,16 @@ export default function App() {
           Hannibal: Rome vs Carthage — Solo Aid
         </h1>
         <div className="flex-1 overflow-auto">
-          <MapBoard cities={cities} setPreview={setPreview} />
+          <MapBoard
+            cities={cities}
+            setPreview={setPreview}
+            setSelection={setSelection}
+            pieces={pieces}
+            setPieces={setPieces}
+          />
         </div>
         <p className="shrink-0 text-xs text-slate-500">
-          都市数: {cities.length}　ドットにホバーで都市名・ユニット情報を表示
+          都市数: {cities.length}　将軍・都市をクリックで詳細表示、右クリックでPC変更
         </p>
       </div>
 
@@ -1130,6 +1308,13 @@ export default function App() {
         >
           ⚔ Start Battle
         </button>
+        <SelectionPanel
+          selection={selection}
+          pieces={pieces}
+          setPieces={setPieces}
+          cities={cities}
+          setSelection={setSelection}
+        />
         <StukaJoePanel />
         <CardDealPanel setPreview={setPreview} />
       </div>
