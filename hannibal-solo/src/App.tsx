@@ -154,22 +154,24 @@ interface DragState {
   currentY: number
 }
 
-// ── 将軍ステータス ────────────────────────────────────────────────────
-const GENERAL_STATS: Record<string, { side: 'Rome' | 'Carthage'; strategy: number; combat: number }> = {
-  'Hannibal':          { side: 'Carthage', strategy: 6, combat: 5 },
-  'Hasdrubal':         { side: 'Carthage', strategy: 4, combat: 3 },
-  'Hanno':             { side: 'Carthage', strategy: 2, combat: 1 },
-  'Mago':              { side: 'Carthage', strategy: 3, combat: 2 },
-  'H. Gisbo':          { side: 'Carthage', strategy: 2, combat: 2 },
-  'Fabius':            { side: 'Rome',     strategy: 3, combat: 2 },
-  'Flaminius':         { side: 'Rome',     strategy: 1, combat: 3 },
-  'Varro':             { side: 'Rome',     strategy: 1, combat: 2 },
-  'A. Paulus':         { side: 'Rome',     strategy: 2, combat: 3 },
-  'Marcellus':         { side: 'Rome',     strategy: 3, combat: 4 },
-  'G. Nero':           { side: 'Rome',     strategy: 3, combat: 3 },
-  'P. Scipio':         { side: 'Rome',     strategy: 3, combat: 2 },
-  'Scipio Africanus':  { side: 'Rome',     strategy: 5, combat: 4 },
-  'T. Longus':         { side: 'Rome',     strategy: 1, combat: 2 },
+// ── 将軍ステータス（SR=戦略, BR=戦闘, CC=指揮限界）────────────────────
+const GENERAL_STATS: Record<string, { side: 'Rome' | 'Carthage'; strategy: number; combat: number; command: number }> = {
+  // ── カルタゴ ──────────────────────────────────────────────────────
+  'Hannibal':         { side: 'Carthage', strategy: 1, combat: 4, command: 10 },
+  'Hasdrubal':        { side: 'Carthage', strategy: 2, combat: 2, command:  5 },
+  'Hanno':            { side: 'Carthage', strategy: 3, combat: 1, command:  8 },
+  'Mago':             { side: 'Carthage', strategy: 2, combat: 2, command:  4 },
+  'H. Gisbo':         { side: 'Carthage', strategy: 3, combat: 2, command:  6 },
+  // ── ローマ ────────────────────────────────────────────────────────
+  'P. Scipio':        { side: 'Rome',     strategy: 2, combat: 2, command:  5 },
+  'T. Longus':        { side: 'Rome',     strategy: 3, combat: 2, command:  5 },
+  'Fabius':           { side: 'Rome',     strategy: 2, combat: 2, command: 10 },
+  'Marcellus':        { side: 'Rome',     strategy: 2, combat: 3, command:  5 },
+  'G. Nero':          { side: 'Rome',     strategy: 2, combat: 2, command:  5 },
+  'A. Paulus':        { side: 'Rome',     strategy: 2, combat: 2, command:  5 },
+  'Flaminius':        { side: 'Rome',     strategy: 3, combat: 2, command:  5 },
+  'Varro':            { side: 'Rome',     strategy: 3, combat: 1, command:  5 },
+  'Scipio Africanus': { side: 'Rome',     strategy: 1, combat: 4, command: 10 },
 }
 
 // ── プレビューデータ型 ────────────────────────────────────────────────
@@ -624,14 +626,18 @@ function SelectionPanel({ selection, pieces, setPieces, cities, setSelection }: 
         {stats && (
           <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: '10px 16px' }}>
             <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 8px' }}>能力値</p>
-            <div style={{ display: 'flex', gap: 24 }}>
+            <div style={{ display: 'flex', gap: 16 }}>
               <div style={{ textAlign: 'center' }}>
                 <p style={{ fontSize: 26, fontWeight: 900, color: '#fbbf24', margin: 0 }}>{stats.strategy}</p>
-                <p style={{ fontSize: 10, color: '#94a3b8', margin: 0 }}>Strategy</p>
+                <p style={{ fontSize: 10, color: '#94a3b8', margin: 0 }}>SR 戦略</p>
               </div>
               <div style={{ textAlign: 'center' }}>
                 <p style={{ fontSize: 26, fontWeight: 900, color: '#fbbf24', margin: 0 }}>{stats.combat}</p>
-                <p style={{ fontSize: 10, color: '#94a3b8', margin: 0 }}>Combat</p>
+                <p style={{ fontSize: 10, color: '#94a3b8', margin: 0 }}>BR 戦闘</p>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <p style={{ fontSize: 26, fontWeight: 900, color: '#60a5fa', margin: 0 }}>{stats.command}</p>
+                <p style={{ fontSize: 10, color: '#94a3b8', margin: 0 }}>CC 指揮</p>
               </div>
             </div>
           </div>
@@ -1193,12 +1199,16 @@ function PreviewPanel({ data, cursor }: { data: PreviewData; cursor: { x: number
                 <table style={{ fontSize: 11, borderCollapse: 'collapse', width: '100%' }}>
                   <tbody>
                     <tr>
-                      <td style={{ color: '#94a3b8', paddingRight: 8 }}>Strategy</td>
+                      <td style={{ color: '#94a3b8', paddingRight: 8 }}>SR 戦略</td>
                       <td style={{ color: '#fbbf24', fontWeight: 700 }}>{stats.strategy}</td>
                     </tr>
                     <tr>
-                      <td style={{ color: '#94a3b8', paddingRight: 8 }}>Combat</td>
+                      <td style={{ color: '#94a3b8', paddingRight: 8 }}>BR 戦闘</td>
                       <td style={{ color: '#fbbf24', fontWeight: 700 }}>{stats.combat}</td>
+                    </tr>
+                    <tr>
+                      <td style={{ color: '#94a3b8', paddingRight: 8 }}>CC 指揮</td>
+                      <td style={{ color: '#60a5fa', fontWeight: 700 }}>{stats.command}</td>
                     </tr>
                   </tbody>
                 </table>
