@@ -196,8 +196,9 @@ function MapBoard({ cities, setPreview }: { cities: City[]; setPreview: SetPrevi
   const wrapperRef = useRef<HTMLDivElement>(null)
   const dragRef    = useRef<DragState | null>(null)
 
-  const [pieces, setPieces] = useState<BoardPiece[]>(INITIAL_PIECES)
-  const [drag,   setDrag]   = useState<DragState | null>(null)
+  const [pieces,      setPieces]      = useState<BoardPiece[]>(INITIAL_PIECES)
+  const [drag,        setDrag]        = useState<DragState | null>(null)
+  const [contextMenu, setContextMenu] = useState<{ screenX: number; screenY: number; city: City } | null>(null)
   // 画像ロード後・リサイズ後にコマ位置を再計算するためのトリガー
   const [, forceUpdate] = useState(0)
 
@@ -312,6 +313,47 @@ function MapBoard({ cities, setPreview }: { cities: City[]; setPreview: SetPrevi
     setDrag({ pieceId, offsetX: e.clientX - rect.left - dispX, offsetY: e.clientY - rect.top - dispY, currentX: dispX, currentY: dispY })
   }
 
+  // コンテキストメニューを外クリックで閉じる
+  useEffect(() => {
+    if (!contextMenu) return
+    const close = () => setContextMenu(null)
+    window.addEventListener('click', close)
+    return () => window.removeEventListener('click', close)
+  }, [contextMenu])
+
+  // 右クリック → 最寄り都市のPCメニュー表示
+  const handleContextMenu = (e: React.MouseEvent, fromCanvas = false) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const { sx, sy } = getScale()
+    const rect = canvasRef.current!.getBoundingClientRect()
+    const cx = (e.clientX - rect.left) * sx
+    const cy = (e.clientY - rect.top)  * sy
+    let nearest: City | null = null, minDist = Infinity
+    const threshold = fromCanvas ? 30 : 60  // ユニット上は広め
+    for (const city of cities) {
+      const d = Math.hypot(city.x - cx, city.y - cy)
+      if (d < threshold && d < minDist) { minDist = d; nearest = city }
+    }
+    if (nearest) setContextMenu({ screenX: e.clientX, screenY: e.clientY, city: nearest })
+  }
+
+  // PC状態を更新（Rome / Carthage / Neutral）
+  const setPCAt = (city: City, side: 'Rome' | 'Carthage' | 'Neutral') => {
+    setPieces(prev => {
+      const filtered = prev.filter(p =>
+        !(p.type === 'PC' && Math.round(p.x) === Math.round(city.x) && Math.round(p.y) === Math.round(city.y))
+      )
+      if (side === 'Neutral') return filtered
+      return [...filtered, {
+        id: `pc-${side.toLowerCase()}-${city.name}`,
+        type: 'PC' as const,
+        x: city.x, y: city.y,
+        imagePath: side === 'Rome' ? '/images/tkn-PC-RomePC.png' : '/images/tkn-PC-CarthPC.png',
+      }]
+    })
+  }
+
   // canvas のマウス移動 → 都市プレビュー（ドラッグ中は無効）
   const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (dragRef.current) return
@@ -352,6 +394,7 @@ function MapBoard({ cities, setPreview }: { cities: City[]; setPreview: SetPrevi
         ref={canvasRef}
         onMouseMove={handleCanvasMouseMove}
         onMouseLeave={() => { if (!drag) setPreview(null) }}
+        onContextMenu={(e) => handleContextMenu(e, true)}
         style={{ maxWidth: '100%', height: 'auto', display: 'block', cursor: drag ? 'grabbing' : 'crosshair' }}
       />
 
@@ -393,6 +436,7 @@ function MapBoard({ cities, setPreview }: { cities: City[]; setPreview: SetPrevi
           <div
             key={piece.id}
             onMouseDown={(e) => handlePieceMouseDown(piece.id, e)}
+            onContextMenu={(e) => handleContextMenu(e)}
             onMouseEnter={() => {
               if (drag) return
               const key = `${Math.round(piece.x)},${Math.round(piece.y)}`
@@ -435,6 +479,51 @@ function MapBoard({ cities, setPreview }: { cities: City[]; setPreview: SetPrevi
           </div>
         )
       })}
+
+      {/* 右クリック PCコンテキストメニュー */}
+      {contextMenu && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            position: 'fixed',
+            left: contextMenu.screenX,
+            top:  contextMenu.screenY,
+            zIndex: 300,
+            background: 'rgba(10, 15, 25, 0.97)',
+            border: '1px solid rgba(200,160,50,0.6)',
+            borderRadius: 8,
+            boxShadow: '0 4px 24px rgba(0,0,0,0.85)',
+            minWidth: 170,
+            overflow: 'hidden',
+          }}
+        >
+          <div style={{ padding: '6px 12px 5px', borderBottom: '1px solid rgba(200,160,50,0.2)',
+            fontSize: 11, color: '#c8a840', fontWeight: 700 }}>
+            {contextMenu.city.name.includes(' - ')
+              ? contextMenu.city.name.split(' - ')[1]
+              : contextMenu.city.name}
+          </div>
+          {([
+            { label: '🔵 Rome',     side: 'Rome'     as const, color: '#60a5fa' },
+            { label: '🔴 Carthage', side: 'Carthage' as const, color: '#f87171' },
+            { label: '⚪ Neutral',  side: 'Neutral'  as const, color: '#94a3b8' },
+          ] as const).map(({ label, side, color }) => (
+            <button
+              key={side}
+              onClick={() => { setPCAt(contextMenu.city, side); setContextMenu(null) }}
+              style={{
+                display: 'block', width: '100%', textAlign: 'left',
+                padding: '7px 14px', fontSize: 12, color,
+                background: 'none', border: 'none', cursor: 'pointer',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
 
     </div>
   )
