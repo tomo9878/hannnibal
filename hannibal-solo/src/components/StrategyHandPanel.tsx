@@ -32,9 +32,9 @@ export function StrategyHandPanel({
       {isActionPhase && (
         <div style={{
           padding: '6px 12px', borderRadius: 6, textAlign: 'center', fontWeight: 700, fontSize: 12,
-          background: activePlayer === 'Carthage' ? 'rgba(239,68,68,0.15)' : 'rgba(96,165,250,0.15)',
-          border: `1px solid ${activePlayer === 'Carthage' ? '#ef4444' : '#60a5fa'}55`,
-          color: activePlayer === 'Carthage' ? '#f87171' : '#60a5fa',
+          background: activePlayer === 'Carthage' ? 'rgba(96,165,250,0.15)' : 'rgba(239,68,68,0.15)',
+          border: `1px solid ${activePlayer === 'Carthage' ? '#60a5fa' : '#ef4444'}55`,
+          color: activePlayer === 'Carthage' ? '#60a5fa' : '#f87171',
         }}>
           {activePlayer} のターン — カードを選択して使用方法を決定してください
         </div>

@@ -208,8 +208,8 @@ export const SIDE_LABEL: Record<'R' | 'C' | 'E', string> = {
 }
 
 export const SIDE_COLOR: Record<'R' | 'C' | 'E', string> = {
-  R: '#60a5fa',
-  C: '#f87171',
+  R: '#f87171',
+  C: '#60a5fa',
   E: '#a78bfa',
 }
 

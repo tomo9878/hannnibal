@@ -40,12 +40,31 @@ function buildScenario1(): BoardPiece[] {
   const mas = find('Massilia - Massilia')
   const lil = find('Sicilia - Lilybaeum')
 
+  // Rest Position 座標（盤面左上/左下のホールディングエリア）
+  const restPos = (name: string) => {
+    const c = allCities.find(city => city.name === `${name} Rest Position`)
+    if (!c) throw new Error(`Rest Position not found: ${name}`)
+    return { x: c.x, y: c.y }
+  }
+
   const generals: BoardPiece[] = [
+    // ── 初期配置済み将軍 ──────────────────────────────────────────
     { id: 'hannibal',  type: 'General', x: nc.x,  y: nc.y,  imagePath: '/images/tkn-gnrl-Hannibal.png',  label: 'Hannibal',  strength: 7 },
     { id: 'hasdrubal', type: 'General', x: nc.x,  y: nc.y,  imagePath: '/images/tkn-gnrl-Hasdrubal.png', label: 'Hasdrubal', strength: 3 },
     { id: 'hanno',     type: 'General', x: crt.x, y: crt.y, imagePath: '/images/tkn-gnrl-Hanno.png',     label: 'Hanno',     strength: 2 },
     { id: 'p-scipio',  type: 'General', x: mas.x, y: mas.y, imagePath: '/images/tkn-gnrl-P. Scipio.png', label: 'P. Scipio', strength: 4 },
     { id: 't-longus',  type: 'General', x: lil.x, y: lil.y, imagePath: '/images/tkn-gnrl-T. Longus.png', label: 'T. Longus', strength: 4 },
+    // ── ローマ予備将軍（Rest Position に待機） ────────────────────
+    { id: 'fabius',            type: 'General', ...restPos('Fabius'),            imagePath: '/images/tkn-gnrl-Fabius.png',            label: 'Fabius',            strength: 0 },
+    { id: 'flaminius',         type: 'General', ...restPos('Flaminius'),         imagePath: '/images/tkn-gnrl-Flaminius.png',         label: 'Flaminius',         strength: 0 },
+    { id: 'marcellus',         type: 'General', ...restPos('Marcellus'),         imagePath: '/images/tkn-gnrl-Marcellus.png',         label: 'Marcellus',         strength: 0 },
+    { id: 'g-nero',            type: 'General', ...restPos('G. Nero'),           imagePath: '/images/tkn-gnrl-G. Nero.png',           label: 'G. Nero',           strength: 0 },
+    { id: 'a-paulus',          type: 'General', ...restPos('A. Paulus'),         imagePath: '/images/tkn-gnrl-A. Paulus.png',         label: 'A. Paulus',         strength: 0 },
+    { id: 'varro',             type: 'General', ...restPos('Varro'),             imagePath: '/images/tkn-gnrl-Varro.png',             label: 'Varro',             strength: 0 },
+    { id: 'scipio-africanus',  type: 'General', ...restPos('Scipio Africanus'),  imagePath: '/images/tkn-gnrl-Scipio Africanus.png',  label: 'Scipio Africanus',  strength: 0 },
+    // ── カルタゴ予備将軍（Rest Position に待機） ──────────────────
+    { id: 'h-gisbo',  type: 'General', ...restPos('H. Gisbo'), imagePath: '/images/tkn-gnrl-H. Gisbo.png', label: 'H. Gisbo', strength: 0 },
+    { id: 'mago',     type: 'General', ...restPos('Mago'),     imagePath: '/images/tkn-gnrl-Mago.png',     label: 'Mago',     strength: 0 },
   ]
 
   const pcs: BoardPiece[] = []

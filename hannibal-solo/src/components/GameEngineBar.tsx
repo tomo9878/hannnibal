@@ -16,9 +16,11 @@ export function GameEngineBar({
   stratDeckSize,
   consul,
   proconsul,
+  playerSide,
   onNextPhase,
   onDealCards,
   onElection,
+  onNewGame,
 }: {
   currentTurn: number
   currentPhase: GamePhase
@@ -26,9 +28,11 @@ export function GameEngineBar({
   stratDeckSize: number
   consul: string
   proconsul: string
+  playerSide: 'Rome' | 'Carthage'
   onNextPhase: () => void
   onDealCards: () => void
   onElection: () => void
+  onNewGame: () => void
 }) {
   const color = PHASE_COLORS[currentPhase]
 
@@ -81,10 +85,10 @@ export function GameEngineBar({
 
       {/* Consul display */}
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 11, color: '#94a3b8' }}>
-        <span style={{ color: '#60a5fa', fontWeight: 700 }}>Consul:</span>
+        <span style={{ color: '#f87171', fontWeight: 700 }}>Consul:</span>
         <span style={{ color: '#f0e6b0' }}>{consul}</span>
         <span style={{ color: '#475569' }}>|</span>
-        <span style={{ color: '#60a5fa', fontWeight: 700 }}>Proconsul:</span>
+        <span style={{ color: '#f87171', fontWeight: 700 }}>Proconsul:</span>
         <span style={{ color: '#f0e6b0' }}>{proconsul}</span>
       </div>
 
@@ -95,8 +99,20 @@ export function GameEngineBar({
         山札: <strong style={{ color: '#94a3b8' }}>{stratDeckSize}</strong>枚
       </span>
 
+      {/* Player side badge */}
+      <div style={{
+        marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6,
+        background: playerSide === 'Rome' ? 'rgba(248,113,113,0.12)' : 'rgba(96,165,250,0.12)',
+        border: `1px solid ${playerSide === 'Rome' ? 'rgba(248,113,113,0.4)' : 'rgba(96,165,250,0.4)'}`,
+        borderRadius: 6, padding: '3px 10px',
+      }}>
+        <span style={{ fontSize: 10, color: playerSide === 'Rome' ? '#f87171' : '#60a5fa', fontWeight: 700 }}>
+          YOU: {playerSide}
+        </span>
+      </div>
+
       {/* Action buttons */}
-      <div style={{ display: 'flex', gap: 8, marginLeft: 'auto', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {currentPhase === 'Strategy' && !cardsDealt && (
           <button
             onClick={onDealCards}
@@ -135,6 +151,17 @@ export function GameEngineBar({
           }}
         >
           {currentPhase === 'Consular' ? 'Next Turn →' : 'Next Phase →'}
+        </button>
+        <button
+          onClick={onNewGame}
+          title="セーブデータを削除して最初から"
+          style={{
+            background: 'none', border: '1px solid #334155', color: '#475569',
+            fontWeight: 600, fontSize: 11, padding: '6px 10px',
+            borderRadius: 6, cursor: 'pointer',
+          }}
+        >
+          ↺ New Game
         </button>
       </div>
     </div>

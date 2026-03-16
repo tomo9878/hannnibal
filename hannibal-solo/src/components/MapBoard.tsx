@@ -340,8 +340,8 @@ export function MapBoard({ cities, setPreview, setSelection, pieces, setPieces }
               : contextMenu.city.name}
           </div>
           {([
-            { label: '🔵 Rome',     side: 'Rome'     as const, color: '#60a5fa' },
-            { label: '🔴 Carthage', side: 'Carthage' as const, color: '#f87171' },
+            { label: '🔴 Rome',     side: 'Rome'     as const, color: '#f87171' },
+            { label: '🔵 Carthage', side: 'Carthage' as const, color: '#60a5fa' },
             { label: '⚪ Neutral',  side: 'Neutral'  as const, color: '#94a3b8' },
           ] as const).map(({ label, side, color }) => (
             <button

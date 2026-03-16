@@ -1,11 +1,14 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import hannibalData from './hannibal_data.json'
 
 import type { City, CardInHand, ActivePlayer, SelectedCard, LogEntry, BoardPiece, SelectionState, PreviewData, RemovedCard } from './types'
 import { GAME_PHASES, PHASE_RULES, PRIORITIES, getCardCounts, ROME_GENERALS_LIST, ROME_CITY_POS } from './data/gameConstants'
 import { STRATEGY_DECK } from './data/cards'
 import { INITIAL_PIECES } from './data/generals'
+import { calculateVictoryScore, checkCapitalFall } from './data/provinces'
 import { shuffle } from './utils'
+
+import { loadSave, writeSave, deleteSave } from './saveLoad'
 
 import { MapBoard }            from './components/MapBoard'
 import { SelectionPanel }      from './components/SelectionPanel'
@@ -17,23 +20,37 @@ import { GameEngineBar }       from './components/GameEngineBar'
 import { GameLog }             from './components/GameLog'
 import { RemovedCardsPanel }   from './components/RemovedCardsPanel'
 import { PreviewPanel }        from './components/PreviewPanel'
+import { VictoryScorePanel }   from './components/VictoryScorePanel'
+import { VictoryModal }        from './components/VictoryModal'
+import { ElectionModal }       from './components/ElectionModal'
+import { SideSelectModal }     from './components/SideSelectModal'
 
 export default function App() {
   const cities = hannibalData.cities as City[]
 
+  // ── セーブデータをアプリ起動時に一度だけ読む ──────────────────────
+  const [_save] = useState(() => loadSave())
+
   // ── Board state ───────────────────────────────────────────────────
-  const [pieces,    setPieces]    = useState<BoardPiece[]>(INITIAL_PIECES)
+  const [pieces,    setPieces]    = useState<BoardPiece[]>(() => _save?.pieces    ?? INITIAL_PIECES)
   const [selection, setSelection] = useState<SelectionState>(null)
   const [battleOpen, setBattleOpen] = useState(false)
   const [preview,    setPreview]    = useState<PreviewData>(null)
   const [cursor,     setCursor]     = useState({ x: 0, y: 0 })
 
+  // ── Side selection ────────────────────────────────────────────────
+  const [playerSide, setPlayerSide] = useState<'Rome' | 'Carthage' | null>(() => _save?.playerSide ?? null)
+
+  // ── Victory state ─────────────────────────────────────────────────
+  const [victory,        setVictory]        = useState<{ winner: 'Rome' | 'Carthage'; reason: string } | null>(null)
+  const [electionResult, setElectionResult] = useState<{ consul: string; proconsul: string } | null>(null)
+
   // ── Game Engine state ─────────────────────────────────────────────
-  const [currentTurn,  setCurrentTurn]  = useState(1)
-  const [currentPhase, setCurrentPhase] = useState<'Strategy' | 'Action' | 'Attrition' | 'PC' | 'Consular'>('Strategy')
-  const [consul,       setConsul]       = useState('P. Scipio')
-  const [proconsul,    setProconsul]    = useState('T. Longus')
-  const [gameLog,      setGameLog]      = useState<LogEntry[]>([
+  const [currentTurn,  setCurrentTurn]  = useState(() => _save?.currentTurn  ?? 1)
+  const [currentPhase, setCurrentPhase] = useState<'Strategy' | 'Action' | 'Attrition' | 'PC' | 'Consular'>(() => _save?.currentPhase ?? 'Strategy')
+  const [consul,       setConsul]       = useState(() => _save?.consul    ?? 'P. Scipio')
+  const [proconsul,    setProconsul]    = useState(() => _save?.proconsul ?? 'T. Longus')
+  const [gameLog,      setGameLog]      = useState<LogEntry[]>(() => _save?.gameLog ?? [
     {
       id: 0, turn: 1, phase: 'Strategy',
       message: 'ゲーム開始 — Turn 1 / Strategy Phase。' + PHASE_RULES['Strategy'],
@@ -41,16 +58,33 @@ export default function App() {
   ])
 
   // ── Strategy card state ───────────────────────────────────────────
-  const [stratDeck,    setStratDeck]    = useState(() => shuffle([...STRATEGY_DECK]))
-  const [stratDiscard, setStratDiscard] = useState<typeof STRATEGY_DECK>([])
-  const [stratRemoved, setStratRemoved] = useState<RemovedCard[]>([])
-  const [romeHand,     setRomeHand]     = useState<CardInHand[]>([])
-  const [carthageHand, setCarthageHand] = useState<CardInHand[]>([])
-  const [cardsDealt,   setCardsDealt]   = useState(false)
+  const [stratDeck,    setStratDeck]    = useState(() => _save?.stratDeck    ?? shuffle([...STRATEGY_DECK]))
+  const [stratDiscard, setStratDiscard] = useState(() => _save?.stratDiscard ?? [])
+  const [stratRemoved, setStratRemoved] = useState<RemovedCard[]>(() => _save?.stratRemoved ?? [])
+  const [romeHand,     setRomeHand]     = useState<CardInHand[]>(() => _save?.romeHand     ?? [])
+  const [carthageHand, setCarthageHand] = useState<CardInHand[]>(() => _save?.carthageHand ?? [])
+  const [cardsDealt,   setCardsDealt]   = useState(() => _save?.cardsDealt ?? false)
 
   // ── Action Phase ──────────────────────────────────────────────────
-  const [activePlayer,  setActivePlayer]  = useState<ActivePlayer>('Carthage')
+  const [activePlayer,  setActivePlayer]  = useState<ActivePlayer>(() => _save?.activePlayer ?? 'Carthage')
   const [selectedCard,  setSelectedCard]  = useState<SelectedCard | null>(null)
+
+  // ── Province score (memoized) ─────────────────────────────────────
+  const victoryScore = useMemo(
+    () => calculateVictoryScore(cities, pieces),
+    [cities, pieces],
+  )
+
+  // ── Capital fall detection ────────────────────────────────────────
+  useEffect(() => {
+    if (victory) return  // already ended
+    const fallen = checkCapitalFall(cities, pieces)
+    if (fallen === 'Carthage') {
+      setVictory({ winner: 'Carthage', reason: 'Rome（首都）にカルタゴのPCが置かれました。カルタゴの即時勝利！' })
+    } else if (fallen === 'Rome') {
+      setVictory({ winner: 'Rome', reason: 'Carthage（首都）にローマのPCが置かれました。ローマの即時勝利！' })
+    }
+  }, [pieces])
 
   // グローバルカーソル追跡
   useEffect(() => {
@@ -58,6 +92,26 @@ export default function App() {
     window.addEventListener('mousemove', h)
     return () => window.removeEventListener('mousemove', h)
   }, [])
+
+  // ── 自動セーブ ────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!playerSide) return
+    writeSave({
+      playerSide, pieces, currentTurn, currentPhase,
+      consul, proconsul, gameLog,
+      stratDeck, stratDiscard, stratRemoved,
+      romeHand, carthageHand, cardsDealt, activePlayer,
+      savedAt: new Date().toISOString(),
+    })
+  }, [playerSide, pieces, currentTurn, currentPhase, consul, proconsul,
+      stratDeck, stratDiscard, stratRemoved, romeHand, carthageHand, cardsDealt, activePlayer])
+
+  // ── New Game ──────────────────────────────────────────────────────
+  const handleNewGame = () => {
+    if (!confirm('セーブデータを削除して最初からやり直しますか？')) return
+    deleteSave()
+    location.reload()
+  }
 
   const addLog = (turn: number, phase: typeof currentPhase, message: string) => {
     setGameLog(prev => [...prev, { id: prev.length, turn, phase, message }])
@@ -68,11 +122,18 @@ export default function App() {
     const idx = GAME_PHASES.indexOf(currentPhase)
     if (idx === GAME_PHASES.length - 1) {
       // Consular → next turn
-      const nextTurn = currentTurn >= 9 ? 9 : currentTurn + 1
       if (currentTurn >= 9) {
-        addLog(currentTurn, 'Consular', 'Turn 9 終了。ゲーム終了条件を確認してください。')
+        // Turn 9 end → final victory judgment
+        const { rome, carthage } = victoryScore
+        const winner: 'Rome' | 'Carthage' = rome > carthage ? 'Rome' : 'Carthage'
+        const reason = rome === carthage
+          ? `Turn 9 終了 — 同数（Rome ${rome} : Carthage ${carthage}）。同点はカルタゴ（Hannibal）の勝利！`
+          : `Turn 9 終了 — Rome ${rome} : Carthage ${carthage}。${winner} の勝利！`
+        addLog(currentTurn, 'Consular', reason)
+        setVictory({ winner, reason })
         return
       }
+      const nextTurn = currentTurn + 1
       setCurrentTurn(nextTurn)
       setCurrentPhase('Strategy')
       setCardsDealt(false)
@@ -104,17 +165,18 @@ export default function App() {
     const drawn = deck.slice(0, needed)
     const remaining = deck.slice(needed)
 
+    const humanSide = playerSide ?? 'Carthage'
     const rCards: CardInHand[] = drawn.slice(0, romeCount).map((c, i) => ({
       name: c.name, imagePath: c.imagePath,
       ops: c.ops, side: c.side, counter: c.counter, remove: c.remove, naval: c.naval,
       priority: i < PRIORITIES.length ? PRIORITIES[i] : String(i + 1),
-      isRevealed: false,  // Rome = 裏向き
+      isRevealed: humanSide === 'Rome',  // プレイヤーが Rome なら表向き
     }))
     const cCards: CardInHand[] = drawn.slice(romeCount).map((c, i) => ({
       name: c.name, imagePath: c.imagePath,
       ops: c.ops, side: c.side, counter: c.counter, remove: c.remove, naval: c.naval,
       priority: i < PRIORITIES.length ? PRIORITIES[i] : String(i + 1),
-      isRevealed: true,   // Carthage = 表向き
+      isRevealed: humanSide === 'Carthage',  // プレイヤーが Carthage なら表向き
     }))
 
     setStratDeck(remaining)
@@ -191,22 +253,56 @@ export default function App() {
   }
 
   // ── Execute Election ──────────────────────────────────────────────
-  const handleElection = () => {
-    const pool = shuffle(ROME_GENERALS_LIST.filter(g => g !== consul && g !== proconsul))
-    const newConsul    = pool[0]
-    const newProconsul = pool[1]
+  const ELECTION_FLAVOR: Record<string, string> = {
+    'Varro':            '無能な扇動家ウァッロが就任！カンナエの悪夢再び……ハンニバルが微笑む。',
+    'Flaminius':        '猪突のフラミニウスが選出！トラシメヌス湖の教訓はどこへ？神々よローマをお守りを。',
+    'A. Paulus':        '慎重派の貴族パウッルスが登板。元老院は胸を撫で下ろすが、民会は不満顔だ。',
+    'Fabius':           '「のろま」ファビウス・マクシムスが再び！影のように追い回す遅延戦術でハンニバルを消耗させよ。',
+    'Marcellus':        'ローマの剣マルケッルスが帰還！五度の執政官経験が示す最高の野戦指揮官だ。',
+    'G. Nero':          '電撃のネロが選出！メタウルス川でハスドルバルを撃破した北の鷹が舞う。',
+    'P. Scipio':        'イベリアの守護者スキピオ（父）が選ばれた。若き息子の活躍を祈りながら戦場へ。',
+    'T. Longus':        'ロングスが就任……トレッビアの失態を繰り返すな。今度こそ罠に嵌まるな！',
+    'Scipio Africanus': '！！ スキピオ・アフリカヌスが元老院に立った ！！　カルタゴよ、ザマの足音が聞こえるか！？',
+  }
 
-    setConsul(newConsul)
-    setProconsul(newProconsul)
+  const handleElection = () => {
+    // ── 6.4 Electing Consuls and Proconsuls ──────────────────────────
+    // Turn 6+: Scipio Africanus は盤上に残り続ける（6.7）
+    const scipioInPlay = currentTurn >= 6
+
+    // 6.4.1 現 Proconsul は盤上に留まる（keepProconsul）
+    // 6.4.2 他の全ローマ将軍を盤面から除去（Scipio Africanus は除く）
+    // 6.4.3 抽選プール = Proconsul と Scipio Africanus（在籍中）を除く全員
+    //        ※旧 Consul も除外しない（再抽選可能）
+    const keepProconsul = proconsul  // 現 Proconsul は盤上に残す
+    const excluded = new Set([keepProconsul, ...(scipioInPlay ? ['Scipio Africanus'] : [])])
+    const pool     = shuffle(ROME_GENERALS_LIST.filter(g => !excluded.has(g)))
+    const newConsul1 = pool[0]
+    const newConsul2 = pool[1]
+
+    setConsul(newConsul1)
+    setProconsul(keepProconsul)  // Proconsul は継続
 
     setPieces(prev => {
       let updated = [...prev]
 
-      const moveOrAdd = (name: string) => {
+      // 6.4.2: 旧 Consul（およびその他の非 Proconsul ローマ将軍）を盤面から除去
+      const keepOnMap = new Set([keepProconsul, newConsul1, newConsul2, ...(scipioInPlay ? ['Scipio Africanus'] : [])])
+      updated = updated.filter(p => {
+        if (p.type !== 'General') return true
+        const isRomeGeneral = ROME_GENERALS_LIST.includes(p.label ?? '')
+        if (!isRomeGeneral) return true
+        return keepOnMap.has(p.label ?? '')
+      })
+
+      // 6.4.4: 新 Consul 2名を Rome に配置（5 CU）
+      const placeConsulAtRome = (name: string) => {
         const existing = updated.find(p => p.label === name)
         if (existing) {
           updated = updated.map(p =>
-            p.label === name ? { ...p, x: ROME_CITY_POS.x, y: ROME_CITY_POS.y } : p
+            p.label === name
+              ? { ...p, x: ROME_CITY_POS.x, y: ROME_CITY_POS.y, strength: 5 }
+              : p
           )
         } else {
           const idStr = name.toLowerCase().replace(/[\s.]/g, '-')
@@ -217,19 +313,50 @@ export default function App() {
             y: ROME_CITY_POS.y,
             imagePath: `/images/tkn-gnrl-${name}.png`,
             label: name,
-            strength: 0,
+            strength: 5,
           })
         }
       }
+      placeConsulAtRome(newConsul1)
+      placeConsulAtRome(newConsul2)
 
-      moveOrAdd(newConsul)
-      moveOrAdd(newProconsul)
+      // 6.7: Turn 6 に Scipio Africanus が Proconsul として登場
+      if (currentTurn === 6 && !updated.find(p => p.label === 'Scipio Africanus')) {
+        updated.push({
+          id: 'general-scipio-africanus',
+          type: 'General',
+          x: ROME_CITY_POS.x,
+          y: ROME_CITY_POS.y,
+          imagePath: '/images/tkn-gnrl-Scipio Africanus.png',
+          label: 'Scipio Africanus',
+          strength: 5,
+        })
+      }
+
       return updated
     })
 
-    addLog(
-      currentTurn, 'Consular',
-      `執政官選出完了 — Consul: ${newConsul}、Proconsul: ${newProconsul}。両名をRomeに配置しました。`,
+    // ログ
+    const flav1 = ELECTION_FLAVOR[newConsul1] ?? `${newConsul1}が執政官に就任。`
+    const flav2 = ELECTION_FLAVOR[newConsul2] ?? `${newConsul2}が第二執政官として就任。`
+    addLog(currentTurn, 'Consular', `【執政官選出 6.4】Consul I: ${newConsul1} / Consul II: ${newConsul2} / Proconsul: ${keepProconsul}（継続）`)
+    addLog(currentTurn, 'Consular', flav1)
+    addLog(currentTurn, 'Consular', flav2)
+    addLog(currentTurn, 'Consular', `新 Consul 2名を Rome に5 CUで配置。補充（6.2）: 5 CUをローマ将軍または Rome に配置してください（うち3以上はイタリア）。`)
+    if (currentTurn === 6) {
+      addLog(currentTurn, 'Consular', `【6.7】スキピオ・アフリカヌスが第二 Proconsul として登場！5 CU を伴いイタリアまたはスペインの適切なスペースに配置してください。`)
+    }
+
+    // モーダル表示
+    setElectionResult({ consul: newConsul1, proconsul: newConsul2 })
+  }
+
+  if (!playerSide) {
+    return (
+      <SideSelectModal
+        onSelect={setPlayerSide}
+        onContinue={() => setPlayerSide(loadSave()!.playerSide)}
+      />
     )
   }
 
@@ -244,9 +371,11 @@ export default function App() {
         stratDeckSize={stratDeck.length}
         consul={consul}
         proconsul={proconsul}
+        playerSide={playerSide}
         onNextPhase={handleNextPhase}
         onDealCards={handleDealCards}
         onElection={handleElection}
+        onNewGame={handleNewGame}
       />
 
       {/* 下部: マップ + 右パネル */}
@@ -276,6 +405,7 @@ export default function App() {
           >
             ⚔ Start Battle
           </button>
+          <VictoryScorePanel score={victoryScore} currentTurn={currentTurn} />
           <SelectionPanel
             selection={selection}
             pieces={pieces}
@@ -298,7 +428,7 @@ export default function App() {
         </div>
       </div>
 
-      {battleOpen && <BattleResolverModal onClose={() => setBattleOpen(false)} setPreview={setPreview} />}
+      {battleOpen && <BattleResolverModal onClose={() => setBattleOpen(false)} setPreview={setPreview} humanSide={playerSide ?? 'Carthage'} />}
 
       {selectedCard && (
         <CardActionModal
@@ -306,6 +436,23 @@ export default function App() {
           onPlay={handlePlayCard}
           onDiscard={handleDiscardCard}
           onCancel={() => setSelectedCard(null)}
+        />
+      )}
+
+      {electionResult && (
+        <ElectionModal
+          consul={electionResult.consul}
+          proconsul={electionResult.proconsul}
+          onClose={() => setElectionResult(null)}
+        />
+      )}
+
+      {victory && (
+        <VictoryModal
+          winner={victory.winner}
+          reason={victory.reason}
+          score={victoryScore}
+          onClose={() => setVictory(null)}
         />
       )}
 

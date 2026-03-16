@@ -52,7 +52,7 @@ export function PreviewPanel({ data, cursor }: { data: PreviewData; cursor: { x:
   if (data.kind === 'piece') {
     const { piece, stackedWith } = data
     const stats = piece.label ? GENERAL_STATS[piece.label] : null
-    const sideColor = stats?.side === 'Rome' ? '#60a5fa' : stats?.side === 'Carthage' ? '#f87171' : '#a3a3a3'
+    const sideColor = stats?.side === 'Rome' ? '#f87171' : stats?.side === 'Carthage' ? '#60a5fa' : '#a3a3a3'
     return (
       <div style={panelStyle}>
         <div style={{ display: 'flex', gap: 10, padding: 12 }}>

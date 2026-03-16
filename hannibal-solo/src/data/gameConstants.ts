@@ -18,7 +18,7 @@ export const PHASE_RULES: Record<GamePhase, string> = {
   Attrition:
     'Attrition Phaseです。山岳・沼地・難地形にいる部隊は消耗チェックを行います。各将軍につきd6を振り、5〜6が出たらCUを1つ失います（海峡越え・冬営地も追加チェック対象）。',
   PC:
-    'PC調整Phaseです。Hannibalがいるイタリアの未占領都市にRome PCを1つ配置。Scipio Africanusがいる場合はHispaniaも対象。アフリカのRome占領都市はCarthage PCに戻します。',
+    'PC調整Phaseです。Hannibalがいるイタリアの未占領都市にRome PCを1つ配置。Scipio Africanusがいる場合はHispaniaも対象。アフリカのRome占領都市はCarthage PCに戻します。\n⚠️【補給線チェック（手動）】各陣営の首都から、自陣営のPCまたは将軍を辿って到達できない孤立PCを盤面から取り除いてください（Rome: Latium-Rome起点 / Carthage: Carthage起点）。',
   Consular:
     'Consular Phaseです。「Execute Election」でローマの執政官2名をランダム選出し、Consul/Proconsulを任命。両名はRomeに自動配置されます。その後ゲームは次のターンへ進みます。',
 }

@@ -16,7 +16,7 @@ export function SelectionPanel({ selection, pieces, setPieces, cities, setSelect
 
   const renderGeneral = (piece: BoardPiece) => {
     const stats = piece.label ? GENERAL_STATS[piece.label] : null
-    const sideColor = stats?.side === 'Rome' ? '#60a5fa' : stats?.side === 'Carthage' ? '#f87171' : '#94a3b8'
+    const sideColor = stats?.side === 'Rome' ? '#f87171' : stats?.side === 'Carthage' ? '#60a5fa' : '#94a3b8'
     return (
       <div key={piece.id} className="space-y-3">
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
