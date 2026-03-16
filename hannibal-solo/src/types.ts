@@ -21,6 +21,7 @@ export interface CardInHand {
   counter: boolean          // Counter Event
   remove: boolean           // REMOVE IF PLAYED
   naval: boolean            // ship symbol (naval movement)
+  slotId?: SlotId           // CDG Solo: どのスロットに配置されているか
 }
 
 export type ActivePlayer = 'Carthage' | 'Rome'
@@ -29,6 +30,8 @@ export interface SelectedCard {
   fromSide: 'Rome' | 'Carthage'
   index: number
   card: CardInHand
+  slotId?: SlotId           // CDG Solo: 選択元スロット
+  constraint?: 'free' | 'event_only'  // CDG Solo: e< 制約
 }
 
 export interface DiceResult {
@@ -85,4 +88,54 @@ export type RemovedCard = {
   counter: boolean
   remove: boolean
   naval: boolean
+}
+
+// ── CDG Solo System 型定義 ─────────────────────────────────────────────
+
+/** Card Display のスロット識別子（A=常時表向き, B=常時表向き, C/D/E=裏向き） */
+export type SlotId = 'A' | 'B' | 'C' | 'D' | 'E'
+
+/** Fate Die の6面 */
+export type FateDieFace = 'C<!!' | 'e<' | 'ABC' | 'AB' | 'CDE' | 'DE'
+
+/**
+ * 各スロットの状態
+ * - faceUp: 表向きかどうか（A/B は初期 true、C/D/E は初期 false）
+ * - card: null = スロットが空（補充待ち）
+ */
+export interface CardSlot {
+  slotId: SlotId
+  card: CardInHand | null
+  faceUp: boolean
+}
+
+/**
+ * 陣営ごとのカードディスプレイ全体の状態
+ * - slots: 常に5要素（A〜E 順）
+ * - stock: スロット外の取り置きカード（Max Hand Size - 5 枚）
+ *   山札から補充する前にここから取る
+ */
+export interface SideDisplay {
+  slots: [CardSlot, CardSlot, CardSlot, CardSlot, CardSlot]
+  cardsRemaining: number
+  maxHandSize: number
+  stock: CardInHand[]
+}
+
+/**
+ * CDG Solo システム全体の状態（App.tsx で管理）
+ * phase:
+ *   'idle'      = ダイス未ロール（ターン開始前）
+ *   'rolled'    = ダイスロール済み・カード未選択
+ *   'selecting' = カード選択中（CardActionModal 表示前）
+ *   'played'    = カードプレイ済み・補充完了
+ */
+export interface CDGSoloState {
+  rome: SideDisplay
+  carthage: SideDisplay
+  fateDieResult: FateDieFace | null
+  availableSlots: SlotId[]
+  /** e< 結果時の制約: 全スロット対象だが Event のみ / 通常時は free */
+  constraint: 'free' | 'event_only'
+  phase: 'idle' | 'rolled' | 'selecting' | 'played'
 }
