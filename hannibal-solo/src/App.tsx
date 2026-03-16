@@ -13,7 +13,6 @@ import { loadSave, writeSave, deleteSave } from './saveLoad'
 
 import { MapBoard }            from './components/MapBoard'
 import { SelectionPanel }      from './components/SelectionPanel'
-import { StukaJoePanel }       from './components/StukaJoePanel'
 import { CardActionModal }     from './components/CardActionModal'
 import { StrategyHandPanel }   from './components/StrategyHandPanel'
 import { BattleResolverModal } from './components/BattleResolverModal'
@@ -476,7 +475,6 @@ export default function App() {
             cities={cities}
             setSelection={setSelection}
           />
-          <StukaJoePanel />
           <GameLog entries={gameLog} />
           <RemovedCardsPanel cards={stratRemoved} />
           <StrategyHandPanel
