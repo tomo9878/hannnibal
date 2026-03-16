@@ -14,7 +14,8 @@ export function CardActionModal({ selected, onPlay, onDiscard, onCancel }: {
   onDiscard: () => void
   onCancel: () => void
 }) {
-  const { card } = selected
+  const { card, constraint, slotId } = selected
+  const isEventOnly = constraint === 'event_only'
   const [imgError, setImgError] = useState(false)
   const [opsOpen, setOpsOpen] = useState(false)
 
@@ -92,9 +93,20 @@ export function CardActionModal({ selected, onPlay, onDiscard, onCancel }: {
                 </span>
               )}
             </div>
-            <p style={{ fontSize: 10, color: '#64748b', margin: 0 }}>
-              {selected.fromSide} の手札 • Priority: {card.priority}
-            </p>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+              <p style={{ fontSize: 10, color: '#64748b', margin: 0 }}>
+                {selected.fromSide} • Slot: {slotId ?? '—'} • Priority: {card.priority}
+              </p>
+              {isEventOnly && (
+                <span style={{
+                  fontSize: 10, fontWeight: 800, padding: '1px 6px', borderRadius: 3,
+                  background: 'rgba(251,146,60,0.18)', border: '1px solid rgba(251,146,60,0.5)',
+                  color: '#fb923c',
+                }}>
+                  🎲 e&lt; — Event のみ
+                </span>
+              )}
+            </div>
           </div>
           <button onClick={onCancel}
             style={{ background: 'none', border: 'none', color: '#64748b',
@@ -104,17 +116,27 @@ export function CardActionModal({ selected, onPlay, onDiscard, onCancel }: {
         {/* アクション選択 */}
         <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
 
-          {/* OPs 使用 */}
-          <div style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.3)',
-            borderRadius: 8, overflow: 'hidden' }}>
+          {/* OPs 使用（e< 制約時は無効） */}
+          <div style={{
+            background: isEventOnly ? 'rgba(30,41,59,0.4)' : 'rgba(59,130,246,0.08)',
+            border: `1px solid ${isEventOnly ? 'rgba(51,65,85,0.4)' : 'rgba(59,130,246,0.3)'}`,
+            borderRadius: 8, overflow: 'hidden',
+            opacity: isEventOnly ? 0.4 : 1,
+          }}>
             <button
-              onClick={() => setOpsOpen(o => !o)}
+              onClick={() => !isEventOnly && setOpsOpen(o => !o)}
+              disabled={isEventOnly}
+              title={isEventOnly ? 'e< 判定のため OPS 使用不可' : undefined}
               style={{ width: '100%', padding: '10px 14px', background: 'none', border: 'none',
-                color: '#93c5fd', fontWeight: 700, fontSize: 13, cursor: 'pointer',
+                color: isEventOnly ? '#475569' : '#93c5fd',
+                fontWeight: 700, fontSize: 13,
+                cursor: isEventOnly ? 'not-allowed' : 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between', textAlign: 'left' }}
             >
               <span>OPs {card.ops} として使用</span>
-              <span style={{ fontSize: 10, opacity: 0.7 }}>{opsOpen ? '▲' : '▼'} 使用目的を選択</span>
+              <span style={{ fontSize: 10, opacity: 0.7 }}>
+                {isEventOnly ? '🚫 e< 制約：OPS 不可' : `${opsOpen ? '▲' : '▼'} 使用目的を選択`}
+              </span>
             </button>
             {opsOpen && (
               <div style={{ borderTop: '1px solid rgba(59,130,246,0.2)', padding: '8px 14px 12px',

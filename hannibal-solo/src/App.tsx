@@ -1,12 +1,13 @@
 import { useState, useEffect, useMemo } from 'react'
 import hannibalData from './hannibal_data.json'
 
-import type { City, CardInHand, ActivePlayer, SelectedCard, LogEntry, BoardPiece, SelectionState, PreviewData, RemovedCard } from './types'
+import type { City, CardInHand, ActivePlayer, SelectedCard, LogEntry, BoardPiece, SelectionState, PreviewData, RemovedCard, CDGSoloState, SlotId } from './types'
 import { GAME_PHASES, PHASE_RULES, PRIORITIES, getCardCounts, ROME_GENERALS_LIST, ROME_CITY_POS } from './data/gameConstants'
 import { STRATEGY_DECK } from './data/cards'
 import { INITIAL_PIECES } from './data/generals'
 import { calculateVictoryScore, checkCapitalFall } from './data/provinces'
 import { shuffle } from './utils'
+import { dealInitialHands, applyFateDieRoll, applyCardPlayed, popFromStock, rollFateDie } from './data/cdgSolo'
 
 import { loadSave, writeSave, deleteSave } from './saveLoad'
 
@@ -58,12 +59,14 @@ export default function App() {
   ])
 
   // ── Strategy card state ───────────────────────────────────────────
-  const [stratDeck,    setStratDeck]    = useState(() => _save?.stratDeck    ?? shuffle([...STRATEGY_DECK]))
-  const [stratDiscard, setStratDiscard] = useState(() => _save?.stratDiscard ?? [])
+  const [stratDeck,    setStratDeck]    = useState<CardInHand[]>(() =>
+    _save?.stratDeck ?? shuffle(STRATEGY_DECK.map(c => ({ ...c, priority: 'A', isRevealed: false })))
+  )
+  const [stratDiscard, setStratDiscard] = useState<RemovedCard[]>(() => _save?.stratDiscard ?? [])
   const [stratRemoved, setStratRemoved] = useState<RemovedCard[]>(() => _save?.stratRemoved ?? [])
-  const [romeHand,     setRomeHand]     = useState<CardInHand[]>(() => _save?.romeHand     ?? [])
-  const [carthageHand, setCarthageHand] = useState<CardInHand[]>(() => _save?.carthageHand ?? [])
-  const [cardsDealt,   setCardsDealt]   = useState(() => _save?.cardsDealt ?? false)
+
+  // ── CDG Solo System state（romeHand / carthageHand / cardsDealt を置き換え）
+  const [cdgSolo, setCdgSolo] = useState<CDGSoloState | null>(() => _save?.cdgSolo ?? null)
 
   // ── Action Phase ──────────────────────────────────────────────────
   const [activePlayer,  setActivePlayer]  = useState<ActivePlayer>(() => _save?.activePlayer ?? 'Carthage')
@@ -77,7 +80,7 @@ export default function App() {
 
   // ── Capital fall detection ────────────────────────────────────────
   useEffect(() => {
-    if (victory) return  // already ended
+    if (victory) return
     const fallen = checkCapitalFall(cities, pieces)
     if (fallen === 'Carthage') {
       setVictory({ winner: 'Carthage', reason: 'Rome（首都）にカルタゴのPCが置かれました。カルタゴの即時勝利！' })
@@ -100,11 +103,11 @@ export default function App() {
       playerSide, pieces, currentTurn, currentPhase,
       consul, proconsul, gameLog,
       stratDeck, stratDiscard, stratRemoved,
-      romeHand, carthageHand, cardsDealt, activePlayer,
+      cdgSolo, activePlayer,
       savedAt: new Date().toISOString(),
     })
   }, [playerSide, pieces, currentTurn, currentPhase, consul, proconsul,
-      stratDeck, stratDiscard, stratRemoved, romeHand, carthageHand, cardsDealt, activePlayer])
+      stratDeck, stratDiscard, stratRemoved, cdgSolo, activePlayer])
 
   // ── New Game ──────────────────────────────────────────────────────
   const handleNewGame = () => {
@@ -123,7 +126,6 @@ export default function App() {
     if (idx === GAME_PHASES.length - 1) {
       // Consular → next turn
       if (currentTurn >= 9) {
-        // Turn 9 end → final victory judgment
         const { rome, carthage } = victoryScore
         const winner: 'Rome' | 'Carthage' = rome > carthage ? 'Rome' : 'Carthage'
         const reason = rome === carthage
@@ -136,87 +138,131 @@ export default function App() {
       const nextTurn = currentTurn + 1
       setCurrentTurn(nextTurn)
       setCurrentPhase('Strategy')
-      setCardsDealt(false)
-      setRomeHand([])
-      setCarthageHand([])
+      setCdgSolo(null)  // 次ターンの配布待ちにリセット
       addLog(nextTurn, 'Strategy', `Turn ${nextTurn} 開始。${PHASE_RULES['Strategy']}`)
     } else {
       const next = GAME_PHASES[idx + 1]
       setCurrentPhase(next)
-      if (next === 'Action') setActivePlayer('Carthage')  // Carthage先手リセット
+      if (next === 'Action') setActivePlayer('Carthage')
       addLog(currentTurn, next, PHASE_RULES[next])
     }
   }
 
-  // ── Deal Strategy Cards ───────────────────────────────────────────
+  // ── Deal Strategy Cards（CDG Solo System） ────────────────────────
   const handleDealCards = () => {
-    const { rome: romeCount, carthage: carthCount } = getCardCounts(currentTurn)
-    const needed = romeCount + carthCount
+    const { rome: romeMax, carthage: carthMax } = getCardCounts(currentTurn)
+    const totalNeeded = romeMax + carthMax
 
     let deck = [...stratDeck]
     let discard = [...stratDiscard]
 
-    if (deck.length < needed) {
-      deck = shuffle([...deck, ...discard])
+    if (deck.length < totalNeeded) {
+      // 捨て札（RemovedCard）を CardInHand に変換してリシャッフル
+      const recycled: CardInHand[] = discard.map(c => ({ ...c, priority: 'A', isRevealed: false }))
+      deck = shuffle([...deck, ...recycled])
       discard = []
       addLog(currentTurn, currentPhase, '山札が切れました。捨て札をシャッフルして新しい山札を作成します。')
     }
 
-    const drawn = deck.slice(0, needed)
-    const remaining = deck.slice(needed)
-
-    const humanSide = playerSide ?? 'Carthage'
-    const rCards: CardInHand[] = drawn.slice(0, romeCount).map((c, i) => ({
-      name: c.name, imagePath: c.imagePath,
-      ops: c.ops, side: c.side, counter: c.counter, remove: c.remove, naval: c.naval,
+    // priority を付与してから渡す
+    const deckWithPriority: CardInHand[] = deck.map((c, i) => ({
+      ...c,
       priority: i < PRIORITIES.length ? PRIORITIES[i] : String(i + 1),
-      isRevealed: humanSide === 'Rome',  // プレイヤーが Rome なら表向き
-    }))
-    const cCards: CardInHand[] = drawn.slice(romeCount).map((c, i) => ({
-      name: c.name, imagePath: c.imagePath,
-      ops: c.ops, side: c.side, counter: c.counter, remove: c.remove, naval: c.naval,
-      priority: i < PRIORITIES.length ? PRIORITIES[i] : String(i + 1),
-      isRevealed: humanSide === 'Carthage',  // プレイヤーが Carthage なら表向き
+      isRevealed: false,
     }))
 
-    setStratDeck(remaining)
+    const { rome, carthage, remainingDeck } = dealInitialHands(
+      deckWithPriority,
+      romeMax,
+      carthMax,
+    )
+
+    setCdgSolo({
+      rome,
+      carthage,
+      fateDieResult: null,
+      availableSlots: [],
+      constraint: 'free',
+      phase: 'idle',
+    })
+    setStratDeck(remainingDeck)
     setStratDiscard(discard)
-    setRomeHand(rCards)
-    setCarthageHand(cCards)
-    setCardsDealt(true)
+
     addLog(
       currentTurn, currentPhase,
-      `カード配布完了 — Rome: ${romeCount}枚（裏向き）、Carthage: ${carthCount}枚（表向き）。山札残り: ${remaining.length}枚。`,
+      `【CDG Solo】カード配布完了 — Rome: ${romeMax}枚 (5スロット+${romeMax - 5}ストック), Carthage: ${carthMax}枚 (5スロット+${carthMax - 5}ストック)。山札残り: ${remainingDeck.length}枚。`,
     )
   }
 
-  // ── Reveal Rome card ──────────────────────────────────────────────
-  const handleRevealRome = (idx: number) => {
-    setRomeHand(prev => prev.map((c, i) => i === idx ? { ...c, isRevealed: true } : c))
+  // ── Fate Die ロール ───────────────────────────────────────────────
+  const handleFateRoll = () => {
+    if (!cdgSolo) return
+    if (cdgSolo[activePlayer === 'Rome' ? 'rome' : 'carthage'].cardsRemaining <= 0) return
+
+    const face = rollFateDie()
+    const next = applyFateDieRoll(cdgSolo, face, activePlayer)
+    setCdgSolo(next)
+    addLog(
+      currentTurn, currentPhase,
+      `[${activePlayer}] 🎲 Fate Die → ${face}  利用可能スロット: ${next.availableSlots.join('・')}${face === 'e<' ? '（最低OPS カードを Event のみで使用）' : ''}`,
+    )
   }
 
-  // ── カードを手札から取り除く ────────────────────────────────────────
-  const removeFromHand = (fromSide: 'Rome' | 'Carthage', index: number) => {
-    if (fromSide === 'Rome') {
-      setRomeHand(prev => prev.filter((_, i) => i !== index))
-    } else {
-      setCarthageHand(prev => prev.filter((_, i) => i !== index))
+  // ── 山札から1枚引くヘルパー（ストック → 山札 → リシャッフル） ────
+  const drawOneCard = (
+    display: CDGSoloState['rome'],
+    deck: CardInHand[],
+    discard: RemovedCard[],
+  ): { card: CardInHand; newDisplay: typeof display; newDeck: CardInHand[]; newDiscard: RemovedCard[] } => {
+    // まずストックから
+    const fromStock = popFromStock(display)
+    if (fromStock) {
+      return {
+        card: fromStock.card,
+        newDisplay: fromStock.updatedDisplay,
+        newDeck: deck,
+        newDiscard: discard,
+      }
     }
+    // ストック枯渇 → 山札から
+    let d = [...deck]
+    let dis = [...discard]
+    if (d.length === 0) {
+      // 捨て札（RemovedCard）を CardInHand に変換してリシャッフル
+      d = shuffle(dis.map(c => ({ ...c, priority: 'A', isRevealed: false })))
+      dis = []
+    }
+    const [card, ...rest] = d
+    return { card: { ...card, isRevealed: false }, newDisplay: display, newDeck: rest, newDiscard: dis }
   }
 
-  // ── 次の手番へ ────────────────────────────────────────────────────
-  const advanceTurn = (currentSide: 'Rome' | 'Carthage') => {
+  // ── 次の手番へ（CDG Solo 版） ─────────────────────────────────────
+  const advanceTurnCDG = (playedSide: 'Rome' | 'Carthage') => {
     setSelectedCard(null)
-    const romeLeft     = romeHand.length     - (currentSide === 'Rome' ? 1 : 0)
-    const carthageLeft = carthageHand.length - (currentSide === 'Carthage' ? 1 : 0)
-    if (currentSide === 'Carthage' && romeLeft > 0) setActivePlayer('Rome')
-    else if (currentSide === 'Rome' && carthageLeft > 0) setActivePlayer('Carthage')
+    if (!cdgSolo) return
+    const remaining = cdgSolo[playedSide === 'Rome' ? 'rome' : 'carthage'].cardsRemaining
+    const otherSide: 'Rome' | 'Carthage' = playedSide === 'Rome' ? 'Carthage' : 'Rome'
+    const otherRemaining = cdgSolo[otherSide === 'Rome' ? 'rome' : 'carthage'].cardsRemaining
+
+    if (remaining > 0) {
+      // まだ自分の手番が残っているが、先に相手に渡す（交互プレイ）
+      setActivePlayer(otherSide)
+    } else if (otherRemaining > 0) {
+      setActivePlayer(otherSide)
+    }
+    // 両方 0 → Strategy Phase 終了はプレイヤーが Next Phase を押す
   }
 
   // ── OPs / Event 使用 ─────────────────────────────────────────────
   const handlePlayCard = (mode: 'ops' | 'event', opsChoice?: 'move' | 'pc' | 'troops') => {
-    if (!selectedCard) return
-    const { fromSide, index, card } = selectedCard
+    if (!selectedCard || !cdgSolo) return
+    const { fromSide, card, slotId, constraint } = selectedCard
+
+    // e< 制約チェック
+    if (constraint === 'event_only' && mode === 'ops') {
+      addLog(currentTurn, currentPhase, `⚠ e< 判定のため「${card.name}」は OPS 使用不可。Event として使用してください。`)
+      return
+    }
 
     let logMsg = ''
     if (mode === 'ops') {
@@ -226,9 +272,10 @@ export default function App() {
                         : 'OPs使用'
       logMsg = `[${fromSide}] 「${card.name}」を OPs ${card.ops} として使用 — ${choiceLabel}`
     } else {
-      logMsg = `[${fromSide}] 「${card.name}」を Event として使用${card.remove ? '（廃棄）' : ''}`
+      logMsg = `[${fromSide}] 「${card.name}」を Event として使用${card.remove ? '（廃棄）' : ''}${constraint === 'event_only' ? ' [e< 制約]' : ''}`
     }
 
+    // 捨て札 / 除外処理
     const baseCard: RemovedCard = { name: card.name, imagePath: card.imagePath, ops: card.ops, side: card.side, counter: card.counter, remove: card.remove, naval: card.naval }
     if (mode === 'event' && card.remove) {
       setStratRemoved(prev => [...prev, baseCard])
@@ -236,20 +283,59 @@ export default function App() {
       setStratDiscard(prev => [...prev, baseCard])
     }
 
-    removeFromHand(fromSide, index)
+    // スロット補充（即時）
+    const sideKey: 'rome' | 'carthage' = fromSide === 'Rome' ? 'rome' : 'carthage'
+    const usedSlotId: SlotId = slotId ?? 'A'
+    const { card: newCard, newDisplay, newDeck, newDiscard } = drawOneCard(
+      cdgSolo[sideKey],
+      stratDeck,
+      stratDiscard,
+    )
+
+    if (newDeck.length === 0 && stratDeck.length > 0) {
+      addLog(currentTurn, currentPhase, '山札が切れました。捨て札をシャッフルして新しい山札を作成します。')
+    }
+
+    const updatedSolo = applyCardPlayed(
+      { ...cdgSolo, [sideKey]: newDisplay },
+      fromSide,
+      usedSlotId,
+      newCard,
+    )
+
+    setCdgSolo(updatedSolo)
+    setStratDeck(newDeck)
+    setStratDiscard(newDiscard)
     addLog(currentTurn, currentPhase, logMsg)
-    advanceTurn(fromSide)
+    advanceTurnCDG(fromSide)
   }
 
-  // ── 捨て札 ────────────────────────────────────────────────────────
+  // ── 捨て札（カードを使わずに捨てる） ──────────────────────────────
   const handleDiscardCard = () => {
-    if (!selectedCard) return
-    const { fromSide, index, card } = selectedCard
+    if (!selectedCard || !cdgSolo) return
+    const { fromSide, card, slotId } = selectedCard
     const baseCard: RemovedCard = { name: card.name, imagePath: card.imagePath, ops: card.ops, side: card.side, counter: card.counter, remove: card.remove, naval: card.naval }
     setStratDiscard(prev => [...prev, baseCard])
-    removeFromHand(fromSide, index)
+
+    const sideKey: 'rome' | 'carthage' = fromSide === 'Rome' ? 'rome' : 'carthage'
+    const usedSlotId: SlotId = slotId ?? 'A'
+    const { card: newCard, newDisplay, newDeck, newDiscard } = drawOneCard(
+      cdgSolo[sideKey],
+      stratDeck,
+      stratDiscard,
+    )
+    const updatedSolo = applyCardPlayed(
+      { ...cdgSolo, [sideKey]: newDisplay },
+      fromSide,
+      usedSlotId,
+      newCard,
+    )
+
+    setCdgSolo(updatedSolo)
+    setStratDeck(newDeck)
+    setStratDiscard(newDiscard)
     addLog(currentTurn, currentPhase, `[${fromSide}] 「${card.name}」を捨て札`)
-    advanceTurn(fromSide)
+    advanceTurnCDG(fromSide)
   }
 
   // ── Execute Election ──────────────────────────────────────────────
@@ -266,27 +352,18 @@ export default function App() {
   }
 
   const handleElection = () => {
-    // ── 6.4 Electing Consuls and Proconsuls ──────────────────────────
-    // Turn 6+: Scipio Africanus は盤上に残り続ける（6.7）
     const scipioInPlay = currentTurn >= 6
-
-    // 6.4.1 現 Proconsul は盤上に留まる（keepProconsul）
-    // 6.4.2 他の全ローマ将軍を盤面から除去（Scipio Africanus は除く）
-    // 6.4.3 抽選プール = Proconsul と Scipio Africanus（在籍中）を除く全員
-    //        ※旧 Consul も除外しない（再抽選可能）
-    const keepProconsul = proconsul  // 現 Proconsul は盤上に残す
+    const keepProconsul = proconsul
     const excluded = new Set([keepProconsul, ...(scipioInPlay ? ['Scipio Africanus'] : [])])
     const pool     = shuffle(ROME_GENERALS_LIST.filter(g => !excluded.has(g)))
     const newConsul1 = pool[0]
     const newConsul2 = pool[1]
 
     setConsul(newConsul1)
-    setProconsul(keepProconsul)  // Proconsul は継続
+    setProconsul(keepProconsul)
 
     setPieces(prev => {
       let updated = [...prev]
-
-      // 6.4.2: 旧 Consul（およびその他の非 Proconsul ローマ将軍）を盤面から除去
       const keepOnMap = new Set([keepProconsul, newConsul1, newConsul2, ...(scipioInPlay ? ['Scipio Africanus'] : [])])
       updated = updated.filter(p => {
         if (p.type !== 'General') return true
@@ -295,48 +372,36 @@ export default function App() {
         return keepOnMap.has(p.label ?? '')
       })
 
-      // 6.4.4: 新 Consul 2名を Rome に配置（5 CU）
       const placeConsulAtRome = (name: string) => {
         const existing = updated.find(p => p.label === name)
         if (existing) {
           updated = updated.map(p =>
-            p.label === name
-              ? { ...p, x: ROME_CITY_POS.x, y: ROME_CITY_POS.y, strength: 5 }
-              : p
+            p.label === name ? { ...p, x: ROME_CITY_POS.x, y: ROME_CITY_POS.y, strength: 5 } : p
           )
         } else {
           const idStr = name.toLowerCase().replace(/[\s.]/g, '-')
           updated.push({
-            id: `general-${idStr}`,
-            type: 'General',
-            x: ROME_CITY_POS.x,
-            y: ROME_CITY_POS.y,
+            id: `general-${idStr}`, type: 'General',
+            x: ROME_CITY_POS.x, y: ROME_CITY_POS.y,
             imagePath: `/images/tkn-gnrl-${name}.png`,
-            label: name,
-            strength: 5,
+            label: name, strength: 5,
           })
         }
       }
       placeConsulAtRome(newConsul1)
       placeConsulAtRome(newConsul2)
 
-      // 6.7: Turn 6 に Scipio Africanus が Proconsul として登場
       if (currentTurn === 6 && !updated.find(p => p.label === 'Scipio Africanus')) {
         updated.push({
-          id: 'general-scipio-africanus',
-          type: 'General',
-          x: ROME_CITY_POS.x,
-          y: ROME_CITY_POS.y,
+          id: 'general-scipio-africanus', type: 'General',
+          x: ROME_CITY_POS.x, y: ROME_CITY_POS.y,
           imagePath: '/images/tkn-gnrl-Scipio Africanus.png',
-          label: 'Scipio Africanus',
-          strength: 5,
+          label: 'Scipio Africanus', strength: 5,
         })
       }
-
       return updated
     })
 
-    // ログ
     const flav1 = ELECTION_FLAVOR[newConsul1] ?? `${newConsul1}が執政官に就任。`
     const flav2 = ELECTION_FLAVOR[newConsul2] ?? `${newConsul2}が第二執政官として就任。`
     addLog(currentTurn, 'Consular', `【執政官選出 6.4】Consul I: ${newConsul1} / Consul II: ${newConsul2} / Proconsul: ${keepProconsul}（継続）`)
@@ -346,8 +411,6 @@ export default function App() {
     if (currentTurn === 6) {
       addLog(currentTurn, 'Consular', `【6.7】スキピオ・アフリカヌスが第二 Proconsul として登場！5 CU を伴いイタリアまたはスペインの適切なスペースに配置してください。`)
     }
-
-    // モーダル表示
     setElectionResult({ consul: newConsul1, proconsul: newConsul2 })
   }
 
@@ -367,7 +430,7 @@ export default function App() {
       <GameEngineBar
         currentTurn={currentTurn}
         currentPhase={currentPhase}
-        cardsDealt={cardsDealt}
+        cardsDealt={cdgSolo !== null}
         stratDeckSize={stratDeck.length}
         consul={consul}
         proconsul={proconsul}
@@ -417,11 +480,11 @@ export default function App() {
           <GameLog entries={gameLog} />
           <RemovedCardsPanel cards={stratRemoved} />
           <StrategyHandPanel
-            romeHand={romeHand}
-            carthageHand={carthageHand}
+            cdgSolo={cdgSolo}
             activePlayer={activePlayer}
             isActionPhase={currentPhase === 'Action'}
-            onRevealRome={handleRevealRome}
+            playerSide={playerSide}
+            onFateRoll={handleFateRoll}
             onSelectCard={setSelectedCard}
             setPreview={setPreview}
           />

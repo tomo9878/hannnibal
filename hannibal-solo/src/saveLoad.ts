@@ -1,9 +1,6 @@
-import type { BoardPiece, CardInHand, LogEntry, RemovedCard, GamePhase } from './types'
+import type { BoardPiece, CardInHand, LogEntry, RemovedCard, GamePhase, CDGSoloState } from './types'
 
-export const SAVE_KEY = 'hannibal-solo-v1'
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyCard = any
+export const SAVE_KEY = 'hannibal-solo-v2'  // v1 → v2 で旧セーブと非互換にする
 
 export interface SaveData {
   playerSide:   'Rome' | 'Carthage'
@@ -13,12 +10,10 @@ export interface SaveData {
   consul:       string
   proconsul:    string
   gameLog:      LogEntry[]
-  stratDeck:    AnyCard[]
-  stratDiscard: AnyCard[]
+  stratDeck:    CardInHand[]
+  stratDiscard: RemovedCard[]
   stratRemoved: RemovedCard[]
-  romeHand:     CardInHand[]
-  carthageHand: CardInHand[]
-  cardsDealt:   boolean
+  cdgSolo:      CDGSoloState | null   // romeHand / carthageHand / cardsDealt を置き換え
   activePlayer: 'Rome' | 'Carthage'
   savedAt:      string
 }
@@ -42,4 +37,5 @@ export function writeSave(data: SaveData): void {
 
 export function deleteSave(): void {
   localStorage.removeItem(SAVE_KEY)
+  localStorage.removeItem('hannibal-solo-v1')  // 旧キーも削除
 }
