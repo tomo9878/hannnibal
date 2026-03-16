@@ -111,6 +111,12 @@ export function BattleResolverModal({ onClose, setPreview: _sv, humanSide = 'Car
 
   const appendLog = (msgs: string[]) => setAiLog(prev => [...prev, ...msgs])
 
+  const endBattle = (resultMsg: string) => {
+    setResult(resultMsg)
+    setAiLog(prev => [...prev, '🔄 戦闘終了 — 場のカードと両陣営の手札を回収し、バトルデッキを初期状態にリセットします。'])
+    setBPhase('ended')
+  }
+
   const defHistory = history.map(h => h.def).filter(c => c !== '【敗走】')
   const atkHistory = history.map(h => h.atk)
   const mostCommon = (arr: string[]): string => {
@@ -120,23 +126,38 @@ export function BattleResolverModal({ onClose, setPreview: _sv, humanSide = 'Car
   }
 
   // ── Start battle ──────────────────────────────────────────────────────
+  const FULL_BATTLE_DECK = BATTLE_CARD_TYPES.flatMap(({ name, count }) =>
+    Array.from({ length: count }, () => name)
+  )
+
   const handleStart = () => {
-    const deck = shuffle(BATTLE_CARD_TYPES.flatMap(({ name, count }) =>
-      Array.from({ length: count }, () => name)
-    ))
-    const total  = atkCards + defCards
-    const drawn  = deck.slice(0, total)
+    const total = atkCards + defCards
+    const startLogs: string[] = [
+      `⚔ 戦闘開始！`,
+      `▶ 攻撃側: ${atkGeneral} (${atkSide}) — ${atkCards}枚  [BR:${getBR(atkGeneral)} + CU:${Math.min(atkCU,10)} + MOD:${atkMods}]`,
+      `▷ 防御側: ${defGeneral} (${initialDefSide}) — ${defCards}枚  [BR:${getBR(defGeneral)} + CU:${Math.min(defCU,10)} + MOD:${defMods}]`,
+    ]
+
+    // デッキから必要枚数を引く。途中で切れたらリシャッフルして補充
+    let deck = shuffle([...FULL_BATTLE_DECK])
+    let drawn: string[] = []
+    while (drawn.length < total) {
+      if (deck.length === 0) {
+        startLogs.push('⚠ 山札が切れました。バトルデッキをリシャッフルして新しい山札を作成します。')
+        deck = shuffle([...FULL_BATTLE_DECK])
+      }
+      const need = total - drawn.length
+      drawn = [...drawn, ...deck.splice(0, Math.min(need, deck.length))]
+    }
+
+    startLogs.push(`--- Round 1 ---`)
+
     setAtkHand(drawn.slice(0, atkCards))
     setDefHand(drawn.slice(atkCards))
     setAtkCard(null); setDefCard(null)
     setRound(1); setHistory([]); setResult(null); setResHeld(false)
-    setCurrentAtkSide(atkSide)  // 初期攻撃側にリセット
-    setAiLog([
-      `⚔ 戦闘開始！`,
-      `▶ 攻撃側: ${atkGeneral} (${atkSide}) — ${atkCards}枚  [BR:${getBR(atkGeneral)} + CU:${Math.min(atkCU,10)} + MOD:${atkMods}]`,
-      `▷ 防御側: ${defGeneral} (${initialDefSide}) — ${defCards}枚  [BR:${getBR(defGeneral)} + CU:${Math.min(defCU,10)} + MOD:${defMods}]`,
-      `--- Round 1 ---`,
-    ])
+    setCurrentAtkSide(atkSide)
+    setAiLog(startLogs)
     setBPhase('attack')
   }
 
@@ -157,8 +178,8 @@ export function BattleResolverModal({ onClose, setPreview: _sv, humanSide = 'Car
             : `  通常将軍 — 撤退実行`,
         ])
         if (!isElite) {
-          setResult(`AI撤退 → ${currentDefSide}（Player）の勝利！`)
-          setBPhase('ended'); return
+          endBattle(`AI撤退 → ${currentDefSide}（Player）の勝利！`)
+          return
         }
       }
     }
@@ -316,14 +337,14 @@ export function BattleResolverModal({ onClose, setPreview: _sv, humanSide = 'Car
 
     // ── 敗走 → 攻撃側の勝利 ──────────────────────────────────────────
     if (isDefeat) {
-      setResult(`防御側が敗走 → 攻撃側（${currentAtkSide}）の勝利！実際の損害はCRTで確認してください。`)
-      setBPhase('ended'); return
+      endBattle(`防御側が敗走 → 攻撃側（${currentAtkSide}）の勝利！実際の損害はCRTで確認してください。`)
+      return
     }
 
     // ── 不一致 → 防御失敗、攻撃側の勝利 ─────────────────────────────
     if (!matched) {
-      setResult(`防御失敗 → 攻撃側（${currentAtkSide}）の勝利！実際の損害はCRTで確認してください。`)
-      setBPhase('ended'); return
+      endBattle(`防御失敗 → 攻撃側（${currentAtkSide}）の勝利！実際の損害はCRTで確認してください。`)
+      return
     }
 
     // ── マッチ → 攻守交代（Role Switch）─────────────────────────────
@@ -337,16 +358,16 @@ export function BattleResolverModal({ onClose, setPreview: _sv, humanSide = 'Car
 
     // 手札消耗チェック（swap後の新攻撃側 = 旧防御側）
     if (capturedDefHand.length === 0 && capturedAtkHand.length === 0) {
-      setResult('両軍手札消耗。ルールに従い最終判定を行ってください。')
-      setBPhase('ended'); return
+      endBattle('両軍手札消耗。ルールに従い最終判定を行ってください。')
+      return
     }
     if (capturedDefHand.length === 0) {
-      setResult(`${newAtkSide} 手札消耗 → ${currentAtkSide} 優勢！`)
-      setBPhase('ended'); return
+      endBattle(`${newAtkSide} 手札消耗 → ${currentAtkSide} 優勢！`)
+      return
     }
     if (capturedAtkHand.length === 0) {
-      setResult(`${currentAtkSide} 手札消耗 → ${newAtkSide} 優勢！`)
-      setBPhase('ended'); return
+      endBattle(`${currentAtkSide} 手札消耗 → ${newAtkSide} 優勢！`)
+      return
     }
 
     // 役割交代を確定
@@ -367,6 +388,7 @@ export function BattleResolverModal({ onClose, setPreview: _sv, humanSide = 'Car
     setRound(1); setHistory([]); setAiLog([]); setResult(null); setResHeld(false)
     setCurrentAtkSide(atkSide)
     setBPhase('setup')
+    // バトルデッキは次回 handleStart 時に自動的に初期状態へリセット＆シャッフルされる
   }
 
   // ── Render ────────────────────────────────────────────────────────────

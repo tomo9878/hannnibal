@@ -159,7 +159,7 @@ export default function App() {
     if (deck.length < needed) {
       deck = shuffle([...deck, ...discard])
       discard = []
-      addLog(currentTurn, currentPhase, '山札が不足しているため、捨て札をシャッフルして補充しました。')
+      addLog(currentTurn, currentPhase, '山札が切れました。捨て札をシャッフルして新しい山札を作成します。')
     }
 
     const drawn = deck.slice(0, needed)
