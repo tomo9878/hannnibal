@@ -1,13 +1,13 @@
 import { useState, useEffect, useMemo } from 'react'
 import hannibalData from './hannibal_data.json'
 
-import type { City, CardInHand, ActivePlayer, SelectedCard, LogEntry, BoardPiece, SelectionState, PreviewData, RemovedCard, CDGSoloState, SlotId } from './types'
+import type { City, CardInHand, ActivePlayer, SelectedCard, LogEntry, BoardPiece, SelectionState, PreviewData, RemovedCard, CDGSoloState } from './types'
 import { GAME_PHASES, PHASE_RULES, PRIORITIES, getCardCounts, ROME_GENERALS_LIST, ROME_CITY_POS } from './data/gameConstants'
 import { STRATEGY_DECK } from './data/cards'
 import { INITIAL_PIECES } from './data/generals'
 import { calculateVictoryScore, checkCapitalFall } from './data/provinces'
 import { shuffle } from './utils'
-import { dealInitialHands, applyFateDieRoll, applyCardPlayed, popFromStock, rollFateDie } from './data/cdgSolo'
+import { dealInitialHands, applyFateDieRoll, applyCardPlayed, popFromStock, rollFateDie, removeStockCard } from './data/cdgSolo'
 
 import { loadSave, writeSave, deleteSave } from './saveLoad'
 
@@ -282,29 +282,33 @@ export default function App() {
       setStratDiscard(prev => [...prev, baseCard])
     }
 
-    // スロット補充（即時）
     const sideKey: 'rome' | 'carthage' = fromSide === 'Rome' ? 'rome' : 'carthage'
-    const usedSlotId: SlotId = slotId ?? 'A'
-    const { card: newCard, newDisplay, newDeck, newDiscard } = drawOneCard(
-      cdgSolo[sideKey],
-      stratDeck,
-      stratDiscard,
-    )
 
-    if (newDeck.length === 0 && stratDeck.length > 0) {
-      addLog(currentTurn, currentPhase, '山札が切れました。捨て札をシャッフルして新しい山札を作成します。')
+    if (slotId) {
+      // ── スロットカード: 補充して差し替え ────────────────────────────
+      const { card: newCard, newDisplay, newDeck, newDiscard } = drawOneCard(
+        cdgSolo[sideKey],
+        stratDeck,
+        stratDiscard,
+      )
+      if (newDeck.length === 0 && stratDeck.length > 0) {
+        addLog(currentTurn, currentPhase, '山札が切れました。捨て札をシャッフルして新しい山札を作成します。')
+      }
+      const updatedSolo = applyCardPlayed(
+        { ...cdgSolo, [sideKey]: newDisplay },
+        fromSide,
+        slotId,
+        newCard,
+      )
+      setCdgSolo(updatedSolo)
+      setStratDeck(newDeck)
+      setStratDiscard(newDiscard)
+    } else {
+      // ── ストックカード（プレイヤー自由選択）: ストックから直接削除 ──
+      const updatedDisplay = removeStockCard(cdgSolo[sideKey], selectedCard.index)
+      setCdgSolo({ ...cdgSolo, [sideKey]: updatedDisplay, fateDieResult: null, availableSlots: [], constraint: 'free', phase: 'idle' })
     }
 
-    const updatedSolo = applyCardPlayed(
-      { ...cdgSolo, [sideKey]: newDisplay },
-      fromSide,
-      usedSlotId,
-      newCard,
-    )
-
-    setCdgSolo(updatedSolo)
-    setStratDeck(newDeck)
-    setStratDiscard(newDiscard)
     addLog(currentTurn, currentPhase, logMsg)
     advanceTurnCDG(fromSide)
   }
@@ -317,22 +321,27 @@ export default function App() {
     setStratDiscard(prev => [...prev, baseCard])
 
     const sideKey: 'rome' | 'carthage' = fromSide === 'Rome' ? 'rome' : 'carthage'
-    const usedSlotId: SlotId = slotId ?? 'A'
-    const { card: newCard, newDisplay, newDeck, newDiscard } = drawOneCard(
-      cdgSolo[sideKey],
-      stratDeck,
-      stratDiscard,
-    )
-    const updatedSolo = applyCardPlayed(
-      { ...cdgSolo, [sideKey]: newDisplay },
-      fromSide,
-      usedSlotId,
-      newCard,
-    )
 
-    setCdgSolo(updatedSolo)
-    setStratDeck(newDeck)
-    setStratDiscard(newDiscard)
+    if (slotId) {
+      const { card: newCard, newDisplay, newDeck, newDiscard } = drawOneCard(
+        cdgSolo[sideKey],
+        stratDeck,
+        stratDiscard,
+      )
+      const updatedSolo = applyCardPlayed(
+        { ...cdgSolo, [sideKey]: newDisplay },
+        fromSide,
+        slotId,
+        newCard,
+      )
+      setCdgSolo(updatedSolo)
+      setStratDeck(newDeck)
+      setStratDiscard(newDiscard)
+    } else {
+      const updatedDisplay = removeStockCard(cdgSolo[sideKey], selectedCard.index)
+      setCdgSolo({ ...cdgSolo, [sideKey]: updatedDisplay, fateDieResult: null, availableSlots: [], constraint: 'free', phase: 'idle' })
+    }
+
     addLog(currentTurn, currentPhase, `[${fromSide}] 「${card.name}」を捨て札`)
     advanceTurnCDG(fromSide)
   }

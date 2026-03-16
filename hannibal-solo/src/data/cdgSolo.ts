@@ -104,6 +104,18 @@ export function removeCardFromSlot(
   return { ...display, slots }
 }
 
+/**
+ * ストックから指定インデックスのカードを取り除く（プレイヤーが直接ストックカードをプレイした場合）。
+ * cardsRemaining も -1 する。
+ */
+export function removeStockCard(
+  display: SideDisplay,
+  stockIndex: number,
+): SideDisplay {
+  const stock = display.stock.filter((_, i) => i !== stockIndex)
+  return { ...display, stock, cardsRemaining: display.cardsRemaining - 1 }
+}
+
 // ── カード選択ロジック ────────────────────────────────────────────────
 
 /**

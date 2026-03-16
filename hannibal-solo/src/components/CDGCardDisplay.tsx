@@ -400,6 +400,33 @@ export function CDGCardDisplay({
         })}
       </div>
 
+      {/* プレイヤー自由選択モード: ストックカードも全表示 */}
+      {freeSelect && isPlayerSide && display.stock.length > 0 && (
+        <>
+          <div style={{ width: '100%', borderTop: '1px dashed rgba(255,255,255,0.08)', margin: '2px 0' }} />
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'center' }}>
+            {display.stock.map((stockCard, i) => (
+              <CardFace
+                key={`stock-${i}`}
+                slot={{ slotId: 'A', card: { ...stockCard, isRevealed: true }, faceUp: true }}
+                highlight={false}
+                selectable={isActive}
+                constraint="free"
+                onClick={isActive ? () => onSelectCard({
+                  fromSide: side,
+                  index: i,
+                  card: { ...stockCard, isRevealed: true },
+                  slotId: undefined,   // ストックカードは slotId なし
+                  constraint: 'free',
+                }) : undefined}
+                onHover={() => setPreview({ kind: 'card', name: stockCard.name, imagePath: stockCard.imagePath, isBack: false, priority: stockCard.priority })}
+                onLeave={() => setPreview(null)}
+              />
+            ))}
+          </div>
+        </>
+      )}
+
       {/* e< 説明（AI モードのみ） */}
       {!freeSelect && constraint === 'event_only' && isActive && isPlayerSide && (
         <div style={{
