@@ -206,6 +206,7 @@ export function CDGCardDisplay({
   isPlayerSide,
   fateDieFace,
   constraint,
+  freeSelect,
   onSelectCard,
   setPreview,
 }: {
@@ -213,20 +214,25 @@ export function CDGCardDisplay({
   display: SideDisplay
   isActive: boolean
   isPlayerSide: boolean
+  /** プレイヤーターン時: true → 全カード自由選択（Fate Die 制約なし） */
+  freeSelect?: boolean
   fateDieFace: FateDieFace | null
   constraint: 'free' | 'event_only'
   onSelectCard: (selected: SelectedCard) => void
   setPreview: SetPreviewFn
 }) {
   const sideColor = side === 'Carthage' ? '#60a5fa' : '#f87171'
-  const availableSlots: SlotId[] = fateDieFace && isActive ? FATE_SLOTS[fateDieFace] : []
+  const availableSlots: SlotId[] = fateDieFace && isActive && !freeSelect ? FATE_SLOTS[fateDieFace] : []
 
   // 選択可能かどうかの判定
   const isSlotSelectable = (slot: CardSlot): boolean => {
     if (!isActive || !isPlayerSide) return false
+    if (!slot.faceUp || !slot.card) return false
+    // プレイヤー自由選択モード（Fate Die 制約なし）
+    if (freeSelect) return true
+    // AI 制約モード
     if (!fateDieFace) return false
     if (!availableSlots.includes(slot.slotId)) return false
-    if (!slot.faceUp || !slot.card) return false
     // e< の場合は最低 OPS のみ
     if (constraint === 'event_only') {
       const minOps = Math.min(
@@ -306,11 +312,15 @@ export function CDGCardDisplay({
 
       {/* 5スロット */}
       <div style={{ display: 'flex', gap: 4, justifyContent: 'center', flexWrap: 'wrap' }}>
-        {display.slots.map(slot => {
+        {display.slots.map(rawSlot => {
+          // プレイヤー自由選択モードでは全スロットを表向きとして扱う
+          const slot: CardSlot = freeSelect && isPlayerSide && rawSlot.card
+            ? { ...rawSlot, faceUp: true, card: { ...rawSlot.card, isRevealed: true } }
+            : rawSlot
           const selectable = isSlotSelectable(slot)
-          // e< 時はオレンジグロー、通常時はゴールドグロー
-          const glowIsEvent = constraint === 'event_only'
-          const highlighted = availableSlots.includes(slot.slotId)
+          // e< 時はオレンジグロー、通常時はゴールドグロー（freeSelect 時はハイライトなし）
+          const glowIsEvent = !freeSelect && constraint === 'event_only'
+          const highlighted = !freeSelect && availableSlots.includes(slot.slotId)
 
           // AI サイド: 常に裏向き表示（スロット枠のみ）
           if (!isPlayerSide) {
@@ -390,8 +400,8 @@ export function CDGCardDisplay({
         })}
       </div>
 
-      {/* e< 説明 */}
-      {constraint === 'event_only' && isActive && isPlayerSide && (
+      {/* e< 説明（AI モードのみ） */}
+      {!freeSelect && constraint === 'event_only' && isActive && isPlayerSide && (
         <div style={{
           fontSize: 9, color: '#fb923c',
           background: 'rgba(251,146,60,0.08)',
@@ -402,10 +412,16 @@ export function CDGCardDisplay({
         </div>
       )}
 
-      {/* 未ロール時 / 手番外のガイド */}
-      {isActive && isPlayerSide && !fateDieFace && display.cardsRemaining > 0 && (
+      {/* 未ロール時のガイド（AI モードのみ） */}
+      {!freeSelect && isActive && isPlayerSide && !fateDieFace && display.cardsRemaining > 0 && (
         <p style={{ margin: 0, fontSize: 9, color: '#334155', textAlign: 'center' }}>
           Fate Die を振ってカードを選択
+        </p>
+      )}
+      {/* プレイヤーモード: 自由選択ガイド */}
+      {freeSelect && isActive && isPlayerSide && display.cardsRemaining > 0 && (
+        <p style={{ margin: 0, fontSize: 9, color: '#475569', textAlign: 'center' }}>
+          カードをクリックして使用方法を選択
         </p>
       )}
     </div>

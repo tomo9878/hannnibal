@@ -22,41 +22,60 @@ export function StrategyHandPanel({
   if (!cdgSolo) return null
   if (!isActionPhase) return null
 
+  const isPlayerTurn = activePlayer === playerSide
+  const aiSide: 'Rome' | 'Carthage' = playerSide === 'Rome' ? 'Carthage' : 'Rome'
   const activeSideDisplay = activePlayer === 'Rome' ? cdgSolo.rome : cdgSolo.carthage
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
 
-      {/* Fate Die パネル（アクティブサイドのみ） */}
-      <FateDiePanel
-        activeSide={activePlayer}
-        cardsRemaining={activeSideDisplay.cardsRemaining}
-        result={cdgSolo.fateDieResult}
-        constraint={cdgSolo.constraint}
-        onRoll={onFateRoll}
-        disabled={cdgSolo.phase === 'rolled' || activeSideDisplay.cardsRemaining <= 0}
-      />
+      {/* Fate Die パネル: AI のターンのみ表示 */}
+      {!isPlayerTurn && (
+        <FateDiePanel
+          activeSide={activePlayer}
+          cardsRemaining={activeSideDisplay.cardsRemaining}
+          result={cdgSolo.fateDieResult}
+          constraint={cdgSolo.constraint}
+          onRoll={onFateRoll}
+          disabled={cdgSolo.phase === 'rolled' || activeSideDisplay.cardsRemaining <= 0}
+        />
+      )}
 
-      {/* Carthage Card Display */}
+      {/* プレイヤーターン: 自由選択ガイド */}
+      {isPlayerTurn && (
+        <div style={{
+          padding: '6px 12px', borderRadius: 6, textAlign: 'center',
+          fontWeight: 700, fontSize: 12,
+          background: playerSide === 'Carthage' ? 'rgba(96,165,250,0.12)' : 'rgba(248,113,113,0.12)',
+          border: `1px solid ${playerSide === 'Carthage' ? '#60a5fa55' : '#f8717155'}`,
+          color: playerSide === 'Carthage' ? '#60a5fa' : '#f87171',
+        }}>
+          {playerSide} のターン — カードを自由に選択してください
+        </div>
+      )}
+
+      {/* プレイヤーの Card Display（自由選択モード） */}
       <CDGCardDisplay
-        side="Carthage"
-        display={cdgSolo.carthage}
-        isActive={isActionPhase && activePlayer === 'Carthage'}
-        isPlayerSide={playerSide === 'Carthage'}
-        fateDieFace={activePlayer === 'Carthage' ? cdgSolo.fateDieResult : null}
-        constraint={activePlayer === 'Carthage' ? cdgSolo.constraint : 'free'}
+        side={playerSide}
+        display={cdgSolo[playerSide === 'Rome' ? 'rome' : 'carthage']}
+        isActive={isPlayerTurn}
+        isPlayerSide={true}
+        freeSelect={true}
+        fateDieFace={null}
+        constraint="free"
         onSelectCard={onSelectCard}
         setPreview={setPreview}
       />
 
-      {/* Rome Card Display */}
+      {/* AI の Card Display（Fate Die 制約モード） */}
       <CDGCardDisplay
-        side="Rome"
-        display={cdgSolo.rome}
-        isActive={isActionPhase && activePlayer === 'Rome'}
-        isPlayerSide={playerSide === 'Rome'}
-        fateDieFace={activePlayer === 'Rome' ? cdgSolo.fateDieResult : null}
-        constraint={activePlayer === 'Rome' ? cdgSolo.constraint : 'free'}
+        side={aiSide}
+        display={cdgSolo[aiSide === 'Rome' ? 'rome' : 'carthage']}
+        isActive={!isPlayerTurn}
+        isPlayerSide={false}
+        freeSelect={false}
+        fateDieFace={!isPlayerTurn ? cdgSolo.fateDieResult : null}
+        constraint={!isPlayerTurn ? cdgSolo.constraint : 'free'}
         onSelectCard={onSelectCard}
         setPreview={setPreview}
       />
