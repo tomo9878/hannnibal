@@ -57,16 +57,18 @@ export function BattleResolverModal({ onClose, setPreview: _sv }: { onClose: () 
 
   // ── Battle state ─────────────────────────────────────────────────────
   type BPhase = 'setup' | 'attack' | 'defend' | 'resolve' | 'ended'
-  const [bPhase,   setBPhase]   = useState<BPhase>('setup')
-  const [atkHand,  setAtkHand]  = useState<string[]>([])
-  const [defHand,  setDefHand]  = useState<string[]>([])
-  const [atkCard,  setAtkCard]  = useState<string | null>(null)
-  const [defCard,  setDefCard]  = useState<string | null>(null)
-  const [round,    setRound]    = useState(1)
-  const [history,  setHistory]  = useState<BattleRoundRecord[]>([])
-  const [aiLog,    setAiLog]    = useState<string[]>([])
-  const [result,   setResult]   = useState<string | null>(null)
-  const [resHeld,  setResHeld]  = useState(false)  // AI Reserve holding slot
+  const [bPhase,          setBPhase]         = useState<BPhase>('setup')
+  const [atkHand,         setAtkHand]        = useState<string[]>([])
+  const [defHand,         setDefHand]        = useState<string[]>([])
+  const [atkCard,         setAtkCard]        = useState<string | null>(null)
+  const [defCard,         setDefCard]        = useState<string | null>(null)
+  const [round,           setRound]          = useState(1)
+  const [history,         setHistory]        = useState<BattleRoundRecord[]>([])
+  const [aiLog,           setAiLog]          = useState<string[]>([])
+  const [result,          setResult]         = useState<string | null>(null)
+  const [resHeld,         setResHeld]        = useState(false)
+  // currentAtkSide: 攻守交代後に変化する「現在の攻撃側」
+  const [currentAtkSide,  setCurrentAtkSide] = useState<'Rome' | 'Carthage'>(atkSide)
 
   const logRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -74,9 +76,19 @@ export function BattleResolverModal({ onClose, setPreview: _sv }: { onClose: () 
   }, [aiLog])
 
   // ── Derived ───────────────────────────────────────────────────────────
-  const defSide  = atkSide === 'Rome' ? 'Carthage' : 'Rome'
-  const AI_ATKS  = atkSide === 'Rome'       // Rome = AI → AI is attacker
-  const AI_DEFS  = atkSide === 'Carthage'   // Rome = AI → AI is defender
+  // currentAtkSide ベースで毎レンダー再計算（攻守交代に対応）
+  const currentDefSide: 'Rome' | 'Carthage' = currentAtkSide === 'Rome' ? 'Carthage' : 'Rome'
+  const AI_ATKS  = currentAtkSide === 'Rome'      // AI(Rome) が現在の攻撃側
+  const AI_DEFS  = currentAtkSide === 'Carthage'  // AI(Rome) が現在の防御側
+
+  // 初期設定の atkSide と比較して、現在どちらの将軍が攻撃/防御しているか
+  const currentAtkGeneral = currentAtkSide === atkSide ? atkGeneral : defGeneral
+  const currentDefGeneral = currentAtkSide === atkSide ? defGeneral : atkGeneral
+  // AI（Rome）の将軍は初期設定から固定
+  const romeGeneral = atkSide === 'Rome' ? atkGeneral : defGeneral
+
+  // setup 画面用（初期設定の defSide）
+  const initialDefSide = atkSide === 'Rome' ? 'Carthage' : 'Rome'
 
   const getBR       = (n: string) => GENERAL_STATS[n]?.combat ?? 2
   const atkCards    = getBR(atkGeneral) + Math.min(atkCU, 10) + atkMods
@@ -104,10 +116,11 @@ export function BattleResolverModal({ onClose, setPreview: _sv }: { onClose: () 
     setDefHand(drawn.slice(atkCards))
     setAtkCard(null); setDefCard(null)
     setRound(1); setHistory([]); setResult(null); setResHeld(false)
+    setCurrentAtkSide(atkSide)  // 初期攻撃側にリセット
     setAiLog([
       `⚔ 戦闘開始！`,
       `▶ 攻撃側: ${atkGeneral} (${atkSide}) — ${atkCards}枚  [BR:${getBR(atkGeneral)} + CU:${Math.min(atkCU,10)} + MOD:${atkMods}]`,
-      `▷ 防御側: ${defGeneral} (${defSide}) — ${defCards}枚  [BR:${getBR(defGeneral)} + CU:${Math.min(defCU,10)} + MOD:${defMods}]`,
+      `▷ 防御側: ${defGeneral} (${initialDefSide}) — ${defCards}枚  [BR:${getBR(defGeneral)} + CU:${Math.min(defCU,10)} + MOD:${defMods}]`,
       `--- Round 1 ---`,
     ])
     setBPhase('attack')
@@ -118,7 +131,7 @@ export function BattleResolverModal({ onClose, setPreview: _sv }: { onClose: () 
     const hand = [...(AI_ATKS ? atkHand : defHand)]
     if (hand.length === 0) { appendLog(['[AI] 手札なし']); return }
 
-    const msgs: string[] = [`[AI攻撃 R${round}] 手札: [${hand.join(' | ')}]`]
+    const msgs: string[] = [`[AI(${currentAtkSide})攻撃 R${round}] 手札: [${hand.join(' | ')}]`]
     let rHeld  = resHeld
     const consider = hand.slice(0, Math.min(2, hand.length))
     msgs.push(`仮ドロー: [${consider.join(', ')}]`)
@@ -218,10 +231,10 @@ export function BattleResolverModal({ onClose, setPreview: _sv }: { onClose: () 
     newHand.splice(i, 1)
     setAtkHand(newHand)
     setAtkCard(card)
-    appendLog([`[Carthage攻撃 R${round}] ${card} をプレイ`])
+    appendLog([`[${currentAtkSide}攻撃 R${round}] ${card} をプレイ`])
     setBPhase('defend')
 
-    // AI defends after delay (capture current defHand)
+    // AI(Rome) defends after delay (capture current defHand)
     const capturedDefHand = [...defHand]
     setTimeout(() => {
       const { chosen, msgs, newHand: dh } = computeAIDefend(card, capturedDefHand)
@@ -241,12 +254,12 @@ export function BattleResolverModal({ onClose, setPreview: _sv }: { onClose: () 
     newHand.splice(i, 1)
     setDefHand(newHand)
     setDefCard(card)
-    appendLog([`[Carthage防御 R${round}] ${card} をプレイ`])
+    appendLog([`[${currentDefSide}防御 R${round}] ${card} をプレイ`])
     setBPhase('resolve')
   }
 
   const handlePlayerDefeat = () => {
-    appendLog([`[Carthage防御 R${round}] 敗走宣言`])
+    appendLog([`[${currentDefSide}防御 R${round}] 敗走宣言`])
     setDefCard('【敗走】')
     setBPhase('resolve')
   }
@@ -255,55 +268,78 @@ export function BattleResolverModal({ onClose, setPreview: _sv }: { onClose: () 
   const handleResolve = () => {
     if (!atkCard || !defCard) return
     const isDefeat = defCard === '【敗走】'
+    // マッチ条件: 同タイプ または どちらかが Reserve（ワイルド）
     const matched  = !isDefeat && (atkCard === defCard || atkCard === 'Reserve' || defCard === 'Reserve')
 
     const rec: BattleRoundRecord = {
       round, atk: atkCard, def: defCard, matched,
       result: isDefeat ? 'defeat' : matched ? 'matched' : 'unmatched',
     }
-    const newHist = [...history, rec]
-    setHistory(newHist)
+    setHistory(prev => [...prev, rec])
     appendLog([
-      isDefeat  ? `◆ R${round}: ${atkCard} vs 敗走 → 攻撃側 勝利！`
-      : matched ? `◆ R${round}: ${atkCard} ↔ ${defCard} — マッチ（均衡）`
-                : `◆ R${round}: ${atkCard} vs ${defCard} — 不一致（攻撃側優勢）`,
+      isDefeat  ? `◆ R${round}: ${atkCard} vs 敗走 → 攻撃側（${currentAtkSide}）勝利！`
+      : matched ? `◆ R${round}: ${atkCard} ↔ ${defCard} — マッチ！攻守交代`
+                : `◆ R${round}: ${atkCard} vs ${defCard} — 防御失敗 → 攻撃側（${currentAtkSide}）勝利！`,
     ])
 
+    // ── 敗走 → 攻撃側の勝利 ──────────────────────────────────────────
     if (isDefeat) {
-      setResult(`防御側が敗走 → 攻撃側（${atkSide}）の勝利！実際の損害はCRTで確認してください。`)
+      setResult(`防御側が敗走 → 攻撃側（${currentAtkSide}）の勝利！実際の損害はCRTで確認してください。`)
       setBPhase('ended'); return
     }
 
-    // AI withdrawal check (AI attacker withdraws if AI hand < player hand)
-    const aiHandLeft    = AI_ATKS ? atkHand.length : defHand.length
-    const playerHandLeft= AI_ATKS ? defHand.length : atkHand.length
-    if (AI_ATKS && aiHandLeft < playerHandLeft) {
-      const isElite = ELITE_GENERALS.has(atkGeneral)
-      appendLog([
-        `[AI撤退判定] AI手札:${aiHandLeft} < Player手札:${playerHandLeft}`,
-        isElite
-          ? `  精鋭将軍(${atkGeneral}) — 撤退ロールに +1 修正（ルール参照）`
-          : `  通常将軍 — 撤退実行`,
-      ])
-      if (!isElite) {
-        setResult(`AI撤退 → 防御側（Carthage）の勝利！`)
-        setBPhase('ended'); return
-      }
+    // ── 不一致 → 防御失敗、攻撃側の勝利 ─────────────────────────────
+    if (!matched) {
+      setResult(`防御失敗 → 攻撃側（${currentAtkSide}）の勝利！実際の損害はCRTで確認してください。`)
+      setBPhase('ended'); return
     }
 
-    // Hand exhaustion
-    if (atkHand.length === 0 && defHand.length === 0) {
+    // ── マッチ → 攻守交代（Role Switch）─────────────────────────────
+    const newAtkSide: 'Rome' | 'Carthage' = currentAtkSide === 'Rome' ? 'Carthage' : 'Rome'
+
+    appendLog([`✅ 防御成功！${newAtkSide} のカウンター攻撃が始まります`])
+
+    // 手札を swap（atkHand ↔ defHand で役割も入れ替え）
+    const capturedAtkHand = [...atkHand]
+    const capturedDefHand = [...defHand]
+
+    // 手札消耗チェック（swap後の新攻撃側 = 旧防御側）
+    if (capturedDefHand.length === 0 && capturedAtkHand.length === 0) {
       setResult('両軍手札消耗。ルールに従い最終判定を行ってください。')
       setBPhase('ended'); return
     }
-    if (atkHand.length === 0) {
-      setResult(`攻撃側手札消耗 → 防御側（${defSide}）優勢！`)
+    if (capturedDefHand.length === 0) {
+      setResult(`${newAtkSide} 手札消耗 → ${currentAtkSide} 優勢！`)
       setBPhase('ended'); return
     }
-    if (defHand.length === 0) {
-      setResult(`防御側手札消耗 → 攻撃側（${atkSide}）優勢！`)
+    if (capturedAtkHand.length === 0) {
+      setResult(`${currentAtkSide} 手札消耗 → ${newAtkSide} 優勢！`)
       setBPhase('ended'); return
     }
+
+    // AI（Rome）が新たな攻撃側になった場合の撤退判定
+    if (newAtkSide === 'Rome') {
+      const aiHandLeft     = capturedDefHand.length  // 旧防御側 = 新攻撃側(AI)の手札
+      const playerHandLeft = capturedAtkHand.length  // 旧攻撃側 = 新防御側の手札
+      if (aiHandLeft < playerHandLeft) {
+        const isElite = ELITE_GENERALS.has(romeGeneral)
+        appendLog([
+          `[AI撤退判定] AI手札:${aiHandLeft} < Player手札:${playerHandLeft}`,
+          isElite
+            ? `  精鋭将軍(${romeGeneral}) — 撤退ロールに +1 修正（ルール参照）`
+            : `  通常将軍 — 撤退実行`,
+        ])
+        if (!isElite) {
+          setResult(`AI撤退 → ${currentAtkSide}（Player）の勝利！`)
+          setBPhase('ended'); return
+        }
+      }
+    }
+
+    // 役割交代を確定
+    setAtkHand(capturedDefHand)
+    setDefHand(capturedAtkHand)
+    setCurrentAtkSide(newAtkSide)
 
     const nextRound = round + 1
     setRound(nextRound)
@@ -316,6 +352,7 @@ export function BattleResolverModal({ onClose, setPreview: _sv }: { onClose: () 
     setAtkHand([]); setDefHand([])
     setAtkCard(null); setDefCard(null)
     setRound(1); setHistory([]); setAiLog([]); setResult(null); setResHeld(false)
+    setCurrentAtkSide(atkSide)
     setBPhase('setup')
   }
 
@@ -412,8 +449,8 @@ export function BattleResolverModal({ onClose, setPreview: _sv }: { onClose: () 
               <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: 14 }}>
                 <div style={{ marginBottom: 10 }}>
                   <span style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8' }}>▷ 防御側</span>
-                  <span style={{ marginLeft: 8, fontSize: 11, color: defSide === 'Carthage' ? '#f87171' : '#60a5fa' }}>
-                    {defSide} ({defSide === 'Rome' ? 'AI' : 'Player'})
+                  <span style={{ marginLeft: 8, fontSize: 11, color: initialDefSide === 'Carthage' ? '#f87171' : '#60a5fa' }}>
+                    {initialDefSide} ({initialDefSide === 'Rome' ? 'AI' : 'Player'})
                   </span>
                 </div>
                 <label style={{ display: 'block', marginBottom: 8 }}>
@@ -485,10 +522,13 @@ export function BattleResolverModal({ onClose, setPreview: _sv }: { onClose: () 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 1fr', gap: 10, alignItems: 'start' }}>
 
               {/* Attacker */}
-              <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: 12 }}>
+              <div style={{
+                background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: 12,
+                border: `1px solid ${currentAtkSide === 'Carthage' ? 'rgba(239,68,68,0.3)' : 'rgba(96,165,250,0.3)'}`,
+              }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: atkSide === 'Carthage' ? '#f87171' : '#60a5fa' }}>
-                    ▶ {atkGeneral} ({atkSide === 'Rome' ? 'AI' : 'Player'})
+                  <span style={{ fontSize: 11, fontWeight: 700, color: currentAtkSide === 'Carthage' ? '#f87171' : '#60a5fa' }}>
+                    ▶ 攻撃: {currentAtkGeneral} ({currentAtkSide === 'Rome' ? 'AI' : 'Player'})
                   </span>
                   <span style={{ fontSize: 10, color: '#64748b' }}>手札 {atkHand.length}</span>
                 </div>
@@ -538,8 +578,8 @@ export function BattleResolverModal({ onClose, setPreview: _sv }: { onClose: () 
               {/* Defender */}
               <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: defSide === 'Carthage' ? '#f87171' : '#60a5fa' }}>
-                    ▷ {defGeneral} ({defSide === 'Rome' ? 'AI' : 'Player'})
+                  <span style={{ fontSize: 11, fontWeight: 700, color: currentDefSide === 'Carthage' ? '#f87171' : '#60a5fa' }}>
+                    ▷ 防御: {currentDefGeneral} ({currentDefSide === 'Rome' ? 'AI' : 'Player'})
                   </span>
                   <span style={{ fontSize: 10, color: '#64748b' }}>手札 {defHand.length}</span>
                 </div>
