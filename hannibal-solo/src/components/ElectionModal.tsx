@@ -1,5 +1,7 @@
 import { GENERAL_STATS } from '../data/generals'
 
+const BASE = import.meta.env.BASE_URL
+
 // ── フレーバーテキスト ─────────────────────────────────────────────────
 const FLAVOR: Record<string, { title: string; text: string }> = {
   'Varro': {
@@ -84,7 +86,7 @@ function GeneralCard({ name, role }: { name: string; role: string }) {
       {/* Portrait + name */}
       <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
         <img
-          src={`/images/tkn-gnrl-${name}.png`}
+          src={`${BASE}images/tkn-gnrl-${name}.png`}
           alt={name}
           style={{ width: 64, height: 64, objectFit: 'contain', flexShrink: 0,
             filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.8))' }}

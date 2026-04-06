@@ -1,5 +1,7 @@
 import { shuffle } from '../utils'
 
+const BASE = import.meta.env.BASE_URL
+
 // ── カード名リスト（buildFile解析結果） ──────────────────────────────
 const STRATEGY_CARD_NAMES: string[] = [
   'Corsica and Sardinia Revolt', 'Sicilia Revolts', 'Numidia Revolts',
@@ -172,18 +174,18 @@ const CARD_META: Array<{
 
 export const STRATEGY_DECK = STRATEGY_CARD_NAMES.map((name, i) => ({
   name,
-  imagePath: `/images/cards-strg-${String(i + 1).padStart(2, '0')} ${name}.png`,
+  imagePath: `${BASE}images/cards-strg-${String(i + 1).padStart(2, '0')} ${name}.png`,
   ...(CARD_META[i] ?? { ops: 1 as const, side: 'E' as const, counter: false, remove: false, naval: false }),
 }))
 
 // ── バトルカードデッキ定義 ────────────────────────────────────────────
 export const BATTLE_CARD_TYPES = [
-  { name: 'Frontal Assault',    count: 12, imagePath: '/images/cards-btl-Frontal Assault.png' },
-  { name: 'Flank Left',         count: 9,  imagePath: '/images/cards-btl-Flank Left.png' },
-  { name: 'Flank Right',        count: 9,  imagePath: '/images/cards-btl-Flank Right.png' },
-  { name: 'Probe',              count: 8,  imagePath: '/images/cards-btl-Probe.png' },
-  { name: 'Double Envelopment', count: 6,  imagePath: '/images/cards-btl-Double Envelopment.png' },
-  { name: 'Reserve',            count: 4,  imagePath: '/images/cards-btl-Reserve.png' },
+  { name: 'Frontal Assault',    count: 12, imagePath: `${BASE}images/cards-btl-Frontal Assault.png` },
+  { name: 'Flank Left',         count: 9,  imagePath: `${BASE}images/cards-btl-Flank Left.png` },
+  { name: 'Flank Right',        count: 9,  imagePath: `${BASE}images/cards-btl-Flank Right.png` },
+  { name: 'Probe',              count: 8,  imagePath: `${BASE}images/cards-btl-Probe.png` },
+  { name: 'Double Envelopment', count: 6,  imagePath: `${BASE}images/cards-btl-Double Envelopment.png` },
+  { name: 'Reserve',            count: 4,  imagePath: `${BASE}images/cards-btl-Reserve.png` },
 ] as const
 
 // FULL_BATTLE_DECK kept for reference

@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import hannibalData from './hannibal_data.json'
 
+const BASE = import.meta.env.BASE_URL
+
 import type { City, CardInHand, ActivePlayer, SelectedCard, LogEntry, BoardPiece, SelectionState, PreviewData, RemovedCard, CDGSoloState } from './types'
 import { GAME_PHASES, PHASE_RULES, PRIORITIES, getCardCounts, ROME_GENERALS_LIST, ROME_CITY_POS } from './data/gameConstants'
 import { STRATEGY_DECK } from './data/cards'
@@ -391,7 +393,7 @@ export default function App() {
           updated.push({
             id: `general-${idStr}`, type: 'General',
             x: ROME_CITY_POS.x, y: ROME_CITY_POS.y,
-            imagePath: `/images/tkn-gnrl-${name}.png`,
+            imagePath: `${BASE}images/tkn-gnrl-${name}.png`,
             label: name, strength: 5,
           })
         }
@@ -403,7 +405,7 @@ export default function App() {
         updated.push({
           id: 'general-scipio-africanus', type: 'General',
           x: ROME_CITY_POS.x, y: ROME_CITY_POS.y,
-          imagePath: '/images/tkn-gnrl-Scipio Africanus.png',
+          imagePath: `${BASE}images/tkn-gnrl-Scipio Africanus.png`,
           label: 'Scipio Africanus', strength: 5,
         })
       }

@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react'
 import type { City, BoardPiece, SelectionState, DragState, SetPreviewFn } from '../types'
 import { SNAP_THRESHOLD, PIECE_SIZE, PC_SIZE } from '../data/generals'
 
+const BASE = import.meta.env.BASE_URL
+
 export function MapBoard({ cities, setPreview, setSelection, pieces, setPieces }: {
   cities: City[]
   setPreview: SetPreviewFn
@@ -35,7 +37,7 @@ export function MapBoard({ cities, setPreview, setSelection, pieces, setPieces }
     if (!ctx) return
 
     const img = new Image()
-    img.src = '/images/maps-mainmap.png'
+    img.src = `${BASE}images/maps-mainmap.png`
     img.onload = () => {
       canvas.width  = img.naturalWidth
       canvas.height = img.naturalHeight
@@ -165,7 +167,7 @@ export function MapBoard({ cities, setPreview, setSelection, pieces, setPieces }
         id: `pc-${side.toLowerCase()}-${city.name}`,
         type: 'PC' as const,
         x: city.x, y: city.y,
-        imagePath: side === 'Rome' ? '/images/tkn-PC-RomePC.png' : '/images/tkn-PC-CarthPC.png',
+        imagePath: side === 'Rome' ? `${BASE}images/tkn-PC-RomePC.png` : `${BASE}images/tkn-PC-CarthPC.png`,
       }]
     })
   }

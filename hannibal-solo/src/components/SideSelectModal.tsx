@@ -1,6 +1,8 @@
 import { GENERAL_STATS } from '../data/generals'
 import { loadSave } from '../saveLoad'
 
+const BASE = import.meta.env.BASE_URL
+
 export function SideSelectModal({
   onSelect,
   onContinue,
@@ -109,7 +111,7 @@ export function SideSelectModal({
               {/* General portrait */}
               <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 14 }}>
                 <img
-                  src={`/images/tkn-gnrl-${general}.png`}
+                  src={`${BASE}images/tkn-gnrl-${general}.png`}
                   alt={general}
                   style={{ width: 56, height: 56, objectFit: 'contain',
                     filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.8))' }}
